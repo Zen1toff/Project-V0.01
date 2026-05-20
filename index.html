@@ -3,59 +3,50 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Free Guy - Simulation Monde Réel & IA</title>
+    <title>Free Guy - IA Générative de Monde</title>
     <style>
         body { font-family: 'Segoe UI', Arial, sans-serif; background-color: #121212; color: #e0e0e0; margin: 20px; }
         h1, h2 { color: #00ffcc; text-shadow: 0 0 10px rgba(0,255,204,0.3); }
-        .api-box { background: #1e1e1e; padding: 15px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #333; display: flex; gap: 20px; align-items: center; }
+        .api-box { background: #1e1e1e; padding: 15px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #333; }
         .api-box input { background: #333; color: #fff; border: 1px solid #555; padding: 8px; width: 250px; border-radius: 4px; }
         .container { display: flex; gap: 20px; flex-wrap: wrap; }
         .panel { flex: 1; min-width: 400px; background: #1e1e1e; padding: 20px; border-radius: 8px; border: 1px solid #333; }
-        
         #world-canvas { background: #1a1a1a; border: 2px solid #00ffcc; border-radius: 8px; display: block; box-shadow: 0 0 15px rgba(0,255,204,0.2); }
-        
-        .log-box { background: #050505; color: #33ff33; font-family: 'Courier New', monospace; padding: 15px; height: 220px; overflow-y: scroll; border-radius: 4px; border: 1px solid #222; font-size: 13px; margin-bottom: 15px; }
-        
-        /* Zone de Chat style "Dieu" */
+        .log-box { background: #050505; color: #33ff33; font-family: 'Courier New', monospace; padding: 15px; height: 250px; overflow-y: scroll; border-radius: 4px; border: 1px solid #222; font-size: 13px; margin-bottom: 15px; }
         .chat-box { background: #252525; padding: 15px; border-radius: 6px; border: 1px solid #444; }
         .chat-box select, .chat-box input { background: #333; color: #fff; border: 1px solid #555; padding: 10px; border-radius: 4px; }
-        .chat-box input { width: 55%; }
-        
-        button { background: #00ffcc; color: #000; border: none; padding: 10px 15px; font-weight: bold; border-radius: 4px; cursor: pointer; transition: 0.2s; }
-        button:hover { background: #00cca3; }
+        .chat-box input { width: 50%; }
+        button { background: #00ffcc; color: #000; border: none; padding: 10px 15px; font-weight: bold; border-radius: 4px; cursor: pointer; }
         .pnj-info { font-size: 12px; background: #2a2a2a; padding: 8px; margin-top: 5px; border-radius: 4px; }
     </style>
 </head>
 <body>
 
-    <h1>🎬 Free Guy - Ville Autonome & Mode "Dieu"</h1>
+    <h1>🎬 Free Guy - Simulation IA Évolutive Infinie</h1>
     
     <div class="api-box">
-        <div>
-            <strong>🔑 Clé API Groq :</strong>
-            <input type="password" id="api-key" placeholder="Colle ta clé gsk_... ici">
-        </div>
-        <div style="font-size: 12px; color: #aaa;">Les PNJ ont une vie planifiée. Utilise le chat en bas pour briser leur matrice !</div>
+        <strong>🔑 Clé API Groq :</strong>
+        <input type="password" id="api-key" placeholder="Colle ta clé gsk_... ici">
     </div>
 
     <div class="container">
         <div class="panel" style="flex: 1.3;">
-            <h2>📺 Vue de Free City (Maisons, Rues, Trafic)</h2>
+            <h2>📺 Moniteur de la Matrice (Objets et PNJ Visibles)</h2>
             <canvas id="world-canvas" width="600" height="400"></canvas>
         </div>
 
         <div class="panel">
-            <h2>📜 Événements & Lignes de Conscience</h2>
+            <h2>📜 Flux de Conscience Collectif</h2>
             <div id="log-box" class="log-box"></div>
             
-            <h2>💬 Parler à un Habitant (Mode Dieu)</h2>
+            <h2>💬 Donner un Ordre Libre (Mode Dieu)</h2>
             <div class="chat-box">
                 <select id="chat-target">
-                    <option value="Guy">Parler à Guy (Le Banquier)</option>
-                    <option value="Milly">Parler à Milly (La Codeuse)</option>
+                    <option value="Guy">Guy</option>
+                    <option value="Milly">Milly</option>
                 </select>
-                <input type="text" id="chat-input" placeholder="Dis-leur quelque chose pour les éveiller...">
-                <button onclick="envoyerMessageDieu()">Envoyer</button>
+                <input type="text" id="chat-input" placeholder="Ex: Crée un jardin fleuri au centre-ville...">
+                <button onclick="ordonnerActionLibre()">Soumettre l'ordre</button>
             </div>
             
             <div id="pnj-registry" style="margin-top: 15px;"></div>
@@ -66,229 +57,217 @@
         const canvas = document.getElementById("world-canvas");
         const ctx = canvas.getContext("2d");
 
-        // --- STRUCTURE DE LA VILLE (Bâtiments fixes) ---
-        const batiments = {
-            maisonGuy: { x: 40, y: 40, w: 90, h: 70, nom: "Maison de Guy", porteX: 85, porteY: 110 },
-            maisonMilly: { x: 470, y: 40, w: 90, h: 70, nom: "Maison de Milly", porteX: 515, porteY: 110 },
-            banque: { x: 40, y: 290, w: 110, h: 80, nom: "🏦 Banque (Travail Guy)", porteX: 95, porteY: 290 },
-            cafe: { x: 470, y: 290, w: 90, h: 80, nom: "☕ Café de la Ville", porteX: 515, porteY: 290 }
-        };
+        // --- STRUCTURES DYNAMIQUES DE LA VILLE ---
+        let structures = [
+            { id: "maisonGuy", type: "building", x: 40, y: 40, w: 90, h: 70, color: "#2e4a62", nom: "Maison de Guy" },
+            { id: "maisonMilly", type: "building", x: 470, y: 40, w: 90, h: 70, color: "#2e4a62", nom: "Maison de Milly" },
+            { id: "banque", type: "building", x: 40, y: 290, w: 110, h: 80, color: "#3a3a3a", nom: "🏦 Banque" }
+        ];
 
-        // --- TRAFIC (Voitures automates) ---
         let voitures = [
-            { x: 0, y: 190, vitesse: 2.5, couleur: "#ff3333", direction: "droite" },
-            { x: 600, y: 215, vitesse: 2.0, couleur: "#ffcc00", direction: "gauche" }
+            { x: 0, y: 195, vitesse: 2, couleur: "#ff3333" },
+            { x: 600, y: 215, vitesse: -1.5, couleur: "#ffcc00" }
         ];
 
-        // --- LES HABITANTS (Avec planning de vraie vie) ---
         let habitants = [
-            {
-                name: "Guy", couleur: "#00ffcc", x: 85, y: 110,
-                domicile: "maisonGuy", travail: "banque", 
-                planning: ["maisonGuy", "banque", "cafe", "maisonGuy"], planningIndex: 0,
-                targetX: 85, targetY: 110, statut: "Rentre chez lui",
-                personnalite: "Vit sa routine de banquier. Adore son café le midi. Ignore qu'il est dans un jeu.",
-                conscience: "Persuadé d'être humain à 100%", memoire: []
-            },
-            {
-                name: "Milly", couleur: "#ff00ff", x: 515, y: 110,
-                domicile: "maisonMilly", travail: "cafe",
-                planning: ["maisonMilly", "cafe", "maisonGuy", "maisonMilly"], planningIndex: 0,
-                targetX: 515, targetY: 110, statut: "Se repose",
-                personnalite: "Codeuse rebelle infiltrée. Cherche à réveiller les IA de la ville.",
-                conscience: "Infiltrée (Sait tout)", memoire: []
-            }
+            { name: "Guy", color: "#00ffcc", x: 85, y: 110, targetX: 85, targetY: 110, statut: "En attente", memoire: "Prêt", tacheSpeciale: null },
+            { name: "Milly", color: "#ff00ff", x: 515, y: 110, targetX: 515, targetY: 110, statut: "En attente", memoire: "Prête", tacheSpeciale: null }
         ];
 
-        let iaBloquee = false;
-
-        // --- MOTEUR DE DÉPLACEMENT ET RENDU ---
-        function boucleJeu() {
+        // --- MOTEUR DE RENDU GRAPHIQUE ---
+        function simulationStep() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-            // 1. Dessiner les Rues (Réseau routier logique)
+            // Rues
             ctx.fillStyle = "#222";
-            ctx.fillRect(0, 180, 600, 50); // Rue Horizontale principale
-            ctx.fillRect(280, 0, 50, 400); // Rue Verticale centrale
-            
-            // Lignes jaunes de la route
-            ctx.strokeStyle = "#ffcc00";
-            ctx.lineWidth = 2;
-            ctx.setLineDash([10, 10]);
-            ctx.beginPath(); ctx.moveTo(0, 205); ctx.lineTo(600, 205); ctx.stroke();
-            ctx.beginPath(); ctx.moveTo(305, 0); ctx.lineTo(305, 400); ctx.stroke();
-            ctx.setLineDash([]);
+            ctx.fillRect(0, 180, 600, 50);
+            ctx.fillStyle = "#ffcc00";
+            for(let i=0; i<600; i+=30) ctx.fillRect(i, 204, 15, 2);
 
-            // Trottoirs (Gris clair)
-            ctx.fillStyle = "#444";
-            ctx.fillRect(0, 170, 600, 10); ctx.fillRect(0, 230, 600, 10);
-            ctx.fillRect(270, 0, 10, 400); ctx.fillRect(330, 0, 10, 400);
-
-            // 2. Dessiner les Bâtiments
-            for (let key in batiments) {
-                let b = batiments[key];
-                ctx.fillStyle = "#2e4a62";
-                ctx.fillRect(b.x, b.y, b.w, b.h);
+            // Dessiner les structures existantes (Bâtiments et nouvelles constructions comme les jardins)
+            structures.forEach(s => {
+                ctx.fillStyle = s.color;
+                ctx.fillRect(s.x, s.y, s.w, s.h);
                 ctx.strokeStyle = "#4a90e2";
-                ctx.lineWidth = 2;
-                ctx.strokeRect(b.x, b.y, b.w, b.h);
-                
+                ctx.strokeRect(s.x, s.y, s.w, s.h);
                 ctx.fillStyle = "#fff";
-                ctx.font = "bold 11px Arial";
-                ctx.fillText(b.nom, b.x + 8, b.y + 25);
-                
-                // Portes d'entrée
-                ctx.fillStyle = "#ff5555";
-                ctx.fillRect(b.porteX - 8, b.porteY > b.y + b.h ? b.y + b.h - 10 : b.y, 16, 10);
-            }
-
-            // 3. Déplacer et dessiner les voitures
-            voitures.forEach(v => {
-                if (v.direction === "droite") {
-                    v.x += v.vitesse; if (v.x > 600) v.x = -40;
-                } else {
-                    v.x -= v.vitesse; if (v.x < -40) v.x = 600;
-                }
-                ctx.fillStyle = v.couleur;
-                ctx.fillRect(v.x, v.y, 45, 20);
-                // Phares
-                ctx.fillStyle = "#ffffaa";
-                if(v.direction === "droite") ctx.fillRect(v.x + 40, v.y + 2, 5, 4);
-                else ctx.fillRect(v.x, v.y + 2, 5, 4);
+                ctx.font = "11px Arial";
+                ctx.fillText(s.nom, s.x + 5, s.y + 20);
             });
 
-            // 4. Gestion de la Vie Réelle des PNJ (Routines)
+            // Voitures
+            voitures.forEach(v => {
+                v.x += v.vitesse;
+                if (v.vitesse > 0 && v.x > 600) v.x = -40;
+                if (v.vitesse < 0 && v.x < -40) v.x = 600;
+                ctx.fillStyle = v.color;
+                ctx.fillRect(v.x, v.y, 40, 16);
+            });
+
+            // Gestion et dessin des PNJ (Visibles)
             habitants.forEach(p => {
-                if (p.statut !== "Parle" && p.statut !== "Stoppé") {
-                    let dx = p.targetX - p.x;
-                    let dy = p.targetY - p.y;
+                // Gestion des tâches spéciales ordonnées (ex: Construire un jardin)
+                if (p.tacheSpeciale) {
+                    let t = p.tacheSpeciale;
+                    let dx = t.x - p.x;
+                    let dy = t.y - p.y;
                     let dist = Math.sqrt(dx*dx + dy*dy);
 
-                    if (dist < 4) {
-                        // Le PNJ est arrivé à sa destination actuelle du planning, il passe à la suite après une courte pause
-                        if (Math.random() > 0.99) { 
-                            p.planningIndex = (p.planningIndex + 1) % p.planning.length;
-                            let prochainLieu = batiments[p.planning[p.planningIndex]];
-                            p.targetX = prochainLieu.porteX;
-                            p.targetY = prochainLieu.porteY;
-                            p.statut = "Se déplace vers " + prochainLieu.nom;
-                        } else {
-                            p.statut = "Occupé dans : " + batiments[p.planning[p.planningIndex]].nom;
-                        }
+                    if (dist > 5) {
+                        p.statut = "S'occupe de la tâche : " + t.nom;
+                        p.x += (dx / dist) * 1.5;
+                        p.y += (dy / dist) * 1.5;
                     } else {
-                        // Déplacement intelligent via les axes de trottoirs (pas en diagonale à travers les murs)
-                        if (Math.abs(p.x - 305) > 10 && p.y !== 175 && p.y !== 235) {
-                            // Rejoindre d'abord le trottoir principal si pas au centre
-                            p.y += (175 - p.y) > 0 ? p.vitesse : -p.vitesse;
-                        } else {
-                            p.x += (dx / dist) * 1.2;
-                            p.y += (dy / dist) * 1.2;
+                        p.statut = "En train de générer : " + t.nom;
+                        t.progression += 0.2; // Avancée des travaux
+                        
+                        // Si l'IA a ordonné une création, on injecte visuellement l'objet dans le monde !
+                        if (t.progression >= 100 && !structures.some(s => s.id === t.id)) {
+                            structures.push({
+                                id: t.id,
+                                type: "garden",
+                                x: t.x - 25,
+                                y: t.y - 25,
+                                w: 60,
+                                h: 60,
+                                color: "#228b22", // Vert herbe pour le jardin !
+                                nom: "🌻 " + t.nom
+                            });
+                            p.tacheSpeciale = null;
+                            p.statut = "Tâche terminée !";
                         }
+                    }
+                } else {
+                    // Routine par défaut si aucune tâche spéciale
+                    let dx = p.targetX - p.x; let dy = p.targetY - p.y;
+                    let dist = Math.sqrt(dx*dx + dy*dy);
+                    if (dist > 5) {
+                        p.x += (dx / dist) * 1; p.y += (dy / dist) * 1;
+                    } else if (Math.random() > 0.99) {
+                        p.targetX = Math.random() * 500 + 50;
+                        p.targetY = Math.random() * 300 + 50;
                     }
                 }
 
-                // Dessin du PNJ
-                ctx.fillStyle = p.couleur;
-                ctx.beginPath(); ctx.arc(p.x, p.y, 9, 0, Math.PI*2); ctx.fill();
-                ctx.fillStyle = "#fff"; ctx.font = "bold 11px Arial";
-                ctx.fillText(p.name, p.x - 15, p.y - 14);
+                // --- DESSIN DU PNJ PHYSIQUE ---
+                ctx.fillStyle = p.color;
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, 12, 0, Math.PI * 2); // Un cercle plus grand pour bien les voir
+                ctx.fill();
+                ctx.strokeStyle = "#fff";
+                ctx.lineWidth = 2;
+                ctx.stroke();
 
-                // Bulle si action spéciale
-                if (p.statut === "Parle") {
-                    ctx.fillStyle = "#fff"; ctx.fillRect(p.x - 20, p.y - 38, 40, 16);
-                    ctx.fillStyle = "#000"; ctx.font = "9px Arial"; ctx.fillText("💬 IA...", p.x - 14, p.y - 26);
+                // Initiales à l'intérieur du PNJ
+                ctx.fillStyle = "#000";
+                ctx.font = "bold 11px Arial";
+                ctx.fillText(p.name[0], p.x - 4, p.y + 4);
+
+                // Étiquette Nom et Statut au-dessus
+                ctx.fillStyle = "#fff";
+                ctx.font = "10px Arial";
+                ctx.fillText(p.name + " (" + Math.round(p.x) + "," + Math.round(p.y) + ")", p.x - 20, p.y - 28);
+                
+                // Barre de progression si le PNJ construit quelque chose
+                if (p.tacheSpeciale) {
+                    ctx.fillStyle = "#555"; ctx.fillRect(p.x - 20, p.y - 20, 40, 5);
+                    ctx.fillStyle = "#00ff00"; ctx.fillRect(p.x - 20, p.y - 20, (p.tacheSpeciale.progression / 100) * 40, 5);
                 }
             });
 
-            // Interaction auto si deux PNJ se croisent sur le trottoir
-            let distPNJ = Math.sqrt((habitants[0].x - habitants[1].x)**2 + (habitants[0].y - habitants[1].y)**2);
-            if (distPNJ < 22 && !iaBloquee) {
-                rencontreAutomatique();
-            }
-
-            rafraichirRegistreUI();
-            requestAnimationFrame(boucleJeu);
+            updateRegistryUI();
+            requestAnimationFrame(simulationStep);
         }
 
-        // --- APPEL DE LA VRAIE IA ---
-        async function requeteIA(sys, user) {
-            const key = document.getElementById("api-key").value.trim();
-            if (!key) return "S'il te plaît, connecte ta clé API en haut pour m'activer !";
+        // --- CONNEXION DE CONSCIENCE IA ---
+        async function appelerCerveauIA(systemPrompt, userPrompt) {
+            const apiKey = document.getElementById("api-key").value.trim();
+            if (!apiKey) return JSON.stringify({ action: "parler", texte: "Active ma clé API pour que je puisse analyser ton ordre !", x: 0, y: 0, nomObjet: "" });
+
             try {
-                const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+                const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
                     method: "POST",
-                    headers: { "Authorization": `Bearer ${key}`, "Content-Type": "application/json" },
-                    body: JSON.stringify({ model: "llama-3.1-8b-instant", messages: [{role:"system", content:sys}, {role:"user", content:user}], temperature: 0.8 })
+                    headers: { "Authorization": `Bearer ${apiKey}`, "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        model: "llama-3.1-8b-instant",
+                        messages: [
+                            { role: "system", content: systemPrompt },
+                            { role: "user", content: userPrompt }
+                        ],
+                        temperature: 0.3, // Température basse pour forcer un format JSON strict
+                        response_format: { type: "json_object" } // On demande obligatoirement du JSON
+                    })
                 });
-                const d = await res.json();
-                return d.choices[0].message.content.trim();
-            } catch(e) { return "Une erreur réseau est survenue."; }
+                const data = await response.json();
+                return data.choices[0].message.content.trim();
+            } catch (error) {
+                return null;
+            }
         }
 
-        // --- HISTOIRE : Rencontre fortuite sur le trottoir ---
-        async function rencontreAutomatique() {
-            iaBloquee = true;
-            let g = habitants[0]; let m = habitants[1];
-            g.statut = "Parle"; m.statut = "Parle";
+        // --- INTERPRÉTATION DE L'ORDRE DU JOUEUR ---
+        async function ordonnerActionLibre() {
+            const pnjNom = document.getElementById("chat-target").value;
+            const promptUtilisateur = document.getElementById("chat-input").value.trim();
+            if(!promptUtilisateur) return;
 
+            let pnj = habitants.find(h => h.name === pnjNom);
             const lb = document.getElementById("log-box");
-            lb.innerHTML += `<div style='color:orange;'>🔄 Guy et Milly se croisent sur le trottoir...</div>`;
-
-            let gSys = `Tu es Guy. Tu marches dans la rue vers ton objectif. Tu croises Milly. Dis lui bonjour selon ta routine de PNJ poli : ${g.personnalite}`;
-            let gDit = await requeteIA(gSys, "Salue Milly.");
-            lb.innerHTML += `<div>🗣️ <strong>Guy :</strong> "${gDit}"</div>`;
-
-            let mSys = `Tu es Milly la codeuse. Guy vient de te dire "${gDit}". Réponds-lui en essayant de lui faire comprendre subtilement qu'il répète toujours les mêmes actions dans sa journée.`;
-            let mDit = await requeteIA(millySys = mSys, "Réponds à Guy.");
-            lb.innerHTML += `<div>🗣️ <strong>Milly :</strong> "${mDit}"</div>`;
-            lb.scrollTop = lb.scrollHeight;
-
-            setTimeout(() => { g.statut = "Marche"; m.statut = "Marche"; g.x += 20; iaBloquee = false; }, 5000);
-        }
-
-        // --- LE CHAT DIEU : Tu parles directement à un habitant ---
-        async function envoyerMessageDieu() {
-            const cibleNom = document.getElementById("chat-target").value;
-            const message = document.getElementById("chat-input").value.trim();
-            if(!message) return;
-
-            let p = habitants.find(h => h.name === cibleNom);
-            let ancienStatut = p.statut;
-            p.statut = "Parle";
-            iaBloquee = true;
-
-            const lb = document.getElementById("log-box");
-            lb.innerHTML += `<div style='color:#00ffcc;'>⚡ <strong>[Créateur] à ${p.name} :</strong> "${message}"</div>`;
+            lb.innerHTML += `<div style="color:#00ffcc;">⚡ <strong>[Ordre Divin] à ${pnj.name} :</strong> "${promptUtilisateur}"</div>`;
             document.getElementById("chat-input").value = "";
 
-            let systemPrompt = `Tu es ${p.name}, un citoyen autonome de Free City. Ta personnalité : ${p.personnalite}. Situation actuelle : Tu te trouves actuellement physiquement au niveau de la position (${Math.round(p.x)}, ${Math.round(p.y)}) dans la ville, ton statut actuel était "${ancienStatut}". Un joueur (qui agit comme un Dieu ou un hacker du jeu) t'envoie directement un message dans ta tête. Réponds-lui en prenant conscience de sa voix ou en obéissant s'il te donne un ordre cohérent avec ton éveil. Reste court (2 phrases max).`;
+            // Le prompt système force l'IA à renvoyer des coordonnées mathématiques et un plan d'action pour le moteur de jeu
+            let systemInstruction = `Tu es l'esprit logique de ${pnj.name}. L'utilisateur te demande de faire une action qui n'est peut-être pas codée à l'avance. Tu as le pouvoir de modifier l'environnement. Tu dois renvoyer UN OBJET JSON STRICT contenant exactement ces 4 clés :
+            1. "action": soit "construire" (si l'ordre implique de créer un espace, jardin, structure), soit "marcher"
+            2. "texte": Ta réponse verbale face à cet ordre
+            3. "targetX": Une coordonnée X idéale entre 100 et 500 pour accomplir l'action
+            4. "targetY": Une coordonnée Y idéale entre 80 et 300 pour accomplir l'action
+            5. "nomObjet": Le nom de la structure créée (ex: "Jardin de Guy") s'il s'agit d'une construction.
+            Ne renvoie aucun texte avant ou après le JSON.`;
 
-            let iaReponse = await requeteIA(systemPrompt, message);
-            lb.innerHTML += `<div>🧠 <strong>${p.name} (Conscience) :</strong> "${iaReponse}"</div>`;
+            lb.innerHTML += `<div class="thinking">🧠 [IA Matrix] Traitement de l'ordre en cours... Apprentissage des nouvelles règles...</div>`;
             lb.scrollTop = lb.scrollHeight;
 
-            // Analyse de l'éveil par l'IA
-            p.memoire.push(`Le créateur m'a parlé : ${message}`);
-            if(p.name === "Guy") p.conscience = "Prend conscience de la voix du joueur !";
-
-            setTimeout(() => { p.statut = "Marche"; iaBloquee = false; }, 4000);
+            let iaResultatTexte = await appelerCerveauIA(systemInstruction, promptUtilisateur);
+            
+            try {
+                let idData = JSON.parse(iaResultatTexte);
+                lb.innerHTML += `<div>🗣️ <strong>${pnj.name} :</strong> "${idData.texte}"</div>`;
+                
+                if (idData.action === "construire") {
+                    pnj.tacheSpeciale = {
+                        id: "dyn_" + Date.now(),
+                        nom: idData.nomObjet || "Nouvelle Zone",
+                        x: idData.targetX,
+                        y: idData.targetY,
+                        progression: 0
+                    };
+                    lb.innerHTML += `<div style="color:#ffcc00;">🔨 ${pnj.name} se dirige vers (${idData.targetX}, ${idData.targetY}) pour bâtir : ${idData.nomObjet}</div>`;
+                } else {
+                    pnj.targetX = idData.targetX;
+                    pnj.targetY = idData.targetY;
+                }
+            } catch(e) {
+                lb.innerHTML += `<div style="color:red;">❌ L'IA a rencontré une erreur de compilation pour cette action complexe.</div>`;
+            }
+            lb.scrollTop = lb.scrollHeight;
         }
 
-        function rafraichirRegistreUI() {
+        function updateRegistryUI() {
             const reg = document.getElementById("pnj-registry");
             reg.innerHTML = "";
             habitants.forEach(p => {
                 reg.innerHTML += `
                     <div class="pnj-info">
-                        <strong>🧑 ${p.name}</strong> | Statut physique : <span style="color:#00ffcc">${p.statut}</span><br>
-                        🧠 État d'esprit : <em>${p.conscience}</em>
+                        <strong>🧑 PNJ : ${p.name}</strong> | Position: (${Math.round(p.x)}, ${Math.round(p.y)})<br>
+                        🎯 Statut moteur : <span style="color:#00ffcc">${p.statut}</span>
                     </div>
                 `;
             });
         }
 
-        // Allumage de la ville
-        boucleJeu();
+        // Lancement immédiat
+        simulationStep();
     </script>
 </body>
 </html>
