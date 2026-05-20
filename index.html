@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Free Guy - Simulation Réelle & IA Évolutive</title>
+    <title>Free Guy - Simulation Urbaine IA Totale</title>
     <style>
         body { font-family: 'Segoe UI', Arial, sans-serif; background-color: #121212; color: #e0e0e0; margin: 20px; }
         h1, h2 { color: #00ffcc; text-shadow: 0 0 10px rgba(0,255,204,0.3); }
@@ -23,21 +23,21 @@
 </head>
 <body>
 
-    <h1>🎬 Free Guy - Écosystème Urbain Dynamique</h1>
+    <h1>🎬 Free Guy - Ville IA Autonome et Intelligente</h1>
     
     <div class="api-box">
-        <strong>🔑 Connexion Matrice (Clé API Groq) :</strong>
+        <strong>🔑 Connexion au Cerveau (Clé API Groq) :</strong>
         <input type="password" id="api-key" placeholder="Colle ta clé gsk_... ici">
     </div>
 
     <div class="container">
-        <div class="panel" style="flex: 1.3;">
-            <h2>📺 Moniteur de la Ville (Vue Spectateur)</h2>
+        <div class="panel" style="flex: 1.4;">
+            <h2>📺 Moniteur de la Ville (Rues, Trottoirs, Passages Piétons)</h2>
             <canvas id="world-canvas" width="600" height="400"></canvas>
         </div>
 
         <div class="panel">
-            <h2>📜 Flux d'Événements & Conscience</h2>
+            <h2>📜 Flux d'Événements & Conscience active</h2>
             <div id="log-box" class="log-box"></div>
             
             <h2>💬 Donner un Ordre Libre (Mode Créateur)</h2>
@@ -46,7 +46,7 @@
                     <option value="Guy">Guy</option>
                     <option value="Milly">Milly</option>
                 </select>
-                <input type="text" id="chat-input" placeholder="Ex: Construis un grand jardin fleuri au milieu...">
+                <input type="text" id="chat-input" placeholder="Ex: Reste ici / Crée une piscine verte au centre...">
                 <button onclick="ordonnerActionLibre()">Soumettre l'ordre</button>
             </div>
             
@@ -58,23 +58,26 @@
         const canvas = document.getElementById("world-canvas");
         const ctx = canvas.getContext("2d");
 
-        // --- ÉLÉMENTS DE LA CARTE ---
+        // --- GÉOMÉTRIE DU MONDE ---
+        const TROTTOIR_HAUT = 165;
+        const TROTTOIR_BAS = 235;
+        const PASSAGE_X = 300; // Position X du passage piéton central
+
         let structures = [
-            { id: "maisonGuy", type: "building", x: 40, y: 40, w: 100, h: 70, color: "#1f3a52", nom: "🏠 Maison de Guy" },
-            { id: "maisonMilly", type: "building", x: 460, y: 40, w: 100, h: 70, color: "#1f3a52", nom: "🏠 Maison de Milly" },
+            { id: "maisonGuy", type: "building", x: 40, y: 30, w: 100, h: 70, color: "#1f3a52", nom: "🏠 Maison de Guy" },
+            { id: "maisonMilly", type: "building", x: 460, y: 30, w: 100, h: 70, color: "#1f3a52", nom: "🏠 Maison de Milly" },
             { id: "banque", type: "building", x: 40, y: 290, w: 110, h: 80, color: "#2c3e50", nom: "🏦 Banque" },
             { id: "cafe", type: "building", x: 460, y: 290, w: 100, h: 80, color: "#7e512b", nom: "☕ Café Central" }
         ];
 
         let voitures = [
-            { x: 10, y: 192, vitesse: 2.5, couleur: "#d63031" },
-            { x: 550, y: 215, vitesse: -2, couleur: "#f1c40f" }
+            { x: 10, y: 188, vitesse: 3, couleur: "#d63031" },
+            { x: 550, y: 212, vitesse: -2.5, couleur: "#f1c40f" }
         ];
 
-        // --- LES HABITANTS (Avec coordonnées logiques et IA) ---
         let habitants = [
-            { name: "Guy", color: "#00ffcc", x: 90, y: 110, targetX: 90, targetY: 110, statut: "En déplacement", routineTimer: 0, tacheSpeciale: null, conscience: "Suit sa routine" },
-            { name: "Milly", color: "#ff00ff", x: 510, y: 110, targetX: 510, targetY: 110, statut: "En déplacement", routineTimer: 0, tacheSpeciale: null, conscience: "Analyse le monde" }
+            { name: "Guy", color: "#00ffcc", x: 90, y: 110, finalTargetX: 90, finalTargetY: 110, currentTargetX: 90, currentTargetY: 110, statut: "Se promène", routineTimer: 0, tacheSpeciale: null, modeAttente: false },
+            { name: "Milly", color: "#ff00ff", x: 510, y: 110, finalTargetX: 510, finalTargetY: 110, currentTargetX: 510, currentTargetY: 110, statut: "En exploration", routineTimer: 0, tacheSpeciale: null, modeAttente: false }
         ];
 
         function log(text) {
@@ -83,247 +86,253 @@
             lb.scrollTop = lb.scrollHeight;
         }
 
-        // --- BOUCLE PRINCIPALE DE JEU (60 FPS) ---
-        function drawWorld() {
+        // --- PATHFINDING URBAIN (Calcul des trajectoires par les trottoirs) ---
+        function calculerEtapeSuivante(pnj) {
+            // Si le PNJ est en mode attente strict, sa cible reste sa position actuelle
+            if (pnj.modeAttente) {
+                pnj.currentTargetX = pnj.x;
+                pnj.currentTargetY = pnj.y;
+                return;
+            }
+
+            let x1 = pnj.x; let y1 = pnj.y;
+            let x2 = pnj.finalTargetX; let y2 = pnj.finalTargetY;
+
+            // Déterminer si le PNJ doit traverser la route (changement de côté haut/bas)
+            let departEnHaut = (y1 < 180);
+            let arriveeEnBas = (y2 > 230);
+            let departEnBas = (y1 > 230);
+            let arriveeEnHaut = (y2 < 180);
+
+            if ((departEnHaut && arriveeEnBas) || (departEnBas && arriveeEnHaut)) {
+                // ÉTAPE 1 : Si le PNJ n'est pas encore sur l'axe du passage piéton en X
+                if (Math.abs(x1 - PASSAGE_X) > 10 && ((departEnHaut && Math.abs(y1 - TROTTOIR_HAUT) > 5) || (departEnBas && Math.abs(y1 - TROTTOIR_BAS) > 5))) {
+                    pnj.currentTargetX = x1;
+                    pnj.currentTargetY = departEnHaut ? TROTTOIR_HAUT : TROTTOIR_BAS;
+                    pnj.statut = "Rejoint le trottoir";
+                } 
+                // ÉTAPE 2 : Marcher le long du trottoir jusqu'au passage piéton
+                else if (Math.abs(x1 - PASSAGE_X) > 8) {
+                    pnj.currentTargetX = PASSAGE_X;
+                    pnj.currentTargetY = departEnHaut ? TROTTOIR_HAUT : TROTTOIR_BAS;
+                    pnj.statut = "Marche vers le passage piéton";
+                } 
+                // ÉTAPE 3 : Traverser la route au niveau du passage piéton uniquement
+                else if ((departEnHaut && y1 < TROTTOIR_BAS) || (departEnBas && y1 > TROTTOIR_HAUT)) {
+                    pnj.currentTargetX = PASSAGE_X;
+                    pnj.currentTargetY = departEnHaut ? TROTTOIR_BAS : TROTTOIR_HAUT;
+                    pnj.statut = "📢 Traverse au passage piéton";
+                }
+            } else {
+                // Si la cible est du même côté de la rue, déplacement direct le long du trottoir ou vers le bâtiment
+                pnj.currentTargetX = x2;
+                pnj.currentTargetY = y2;
+            }
+        }
+
+        // --- BOUCLE DE SIMULATION GRAPHIQUE (60 FPS) ---
+        function updateAndRender() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-            // 1. Dessin des Rues
+            // Rues (Gris foncé)
             ctx.fillStyle = "#2d3436";
-            ctx.fillRect(0, 180, 600, 50); // Route horizontale
+            ctx.fillRect(0, 180, 600, 50);
             
-            // Lignes de signalisation routière
+            // Lignes de séparation blanches
             ctx.fillStyle = "#ffffff";
-            for(let i = 0; i < 600; i += 40) {
-                ctx.fillRect(i, 204, 20, 2);
-            }
+            for(let i = 0; i < 600; i += 40) ctx.fillRect(i, 204, 20, 2);
 
-            // Passage piéton au centre
-            for(let j = 180; j < 230; j += 10) {
-                ctx.fillRect(290, j, 20, 5);
-            }
+            // Passage Piéton (Sécurisé) au milieu
+            for(let j = 180; j < 230; j += 10) ctx.fillRect(PASSAGE_X - 15, j, 30, 5);
 
-            // 2. Dessin des Structures & Projets Générés par l'IA
+            // Trottoirs de guidage (Gris clair)
+            ctx.fillStyle = "#555";
+            ctx.fillRect(0, TROTTOIR_HAUT - 4, 600, 4);
+            ctx.fillRect(0, TROTTOIR_BAS, 600, 4);
+
+            // Structures & Projets IA
             structures.forEach(s => {
                 ctx.fillStyle = s.color;
                 ctx.fillRect(s.x, s.y, s.w, s.h);
                 ctx.strokeStyle = "#00ffcc";
-                ctx.lineWidth = 1;
                 ctx.strokeRect(s.x, s.y, s.w, s.h);
-                
-                ctx.fillStyle = "#ffffff";
-                ctx.font = "bold 11px Arial";
-                ctx.fillText(s.nom, s.x + 8, s.y + 25);
+                ctx.fillStyle = "#fff"; ctx.font = "bold 11px Arial";
+                ctx.fillText(s.nom, s.x + 8, s.y + 22);
 
-                // Si c'est un jardin généré, dessiner des petites fleurs
                 if (s.type === "garden") {
-                    ctx.fillStyle = "#e84393";
-                    ctx.fillRect(s.x + 10, s.y + 40, 6, 6);
-                    ctx.fillStyle = "#f1c40f";
-                    ctx.fillRect(s.x + 35, s.y + 45, 6, 6);
+                    ctx.fillStyle = "#f1c40f"; ctx.fillRect(s.x + 15, s.y + 35, 5, 5);
+                    ctx.fillStyle = "#e84393"; ctx.fillRect(s.x + 40, s.y + 40, 5, 5);
                 }
             });
 
-            // 3. Déplacement des Voitures
+            // Voitures autonomes
             voitures.forEach(v => {
                 v.x += v.vitesse;
                 if (v.vitesse > 0 && v.x > 600) v.x = -50;
                 if (v.vitesse < 0 && v.x < -50) v.x = 600;
-                
                 ctx.fillStyle = v.color;
-                ctx.fillRect(v.x, v.y, 45, 18);
-                // Pare-brise
-                ctx.fillStyle = "#74b9ff";
-                if(v.vitesse > 0) ctx.fillRect(v.x + 30, v.y + 3, 10, 12);
-                else ctx.fillRect(v.x + 5, v.y + 3, 10, 12);
+                ctx.fillRect(v.x, v.y, 42, 16);
             });
 
-            // 4. Déplacement et Comportement des PNJ
+            // Déplacements Physiques des PNJ
             habitants.forEach(p => {
-                // Gestion des tâches spéciales envoyées par l'IA (Ex: Construire un jardin)
-                if (p.tacheSpeciale) {
-                    let task = p.tacheSpeciale;
-                    let dx = task.x - p.x;
-                    let dy = task.y - p.y;
-                    let dist = Math.sqrt(dx*dx + dy*dy);
+                calculerEtapeSuivante(p);
 
-                    if (dist > 8) {
-                        p.statut = "Se rend sur le chantier";
-                        p.x += (dx / dist) * 2;
-                        p.y += (dy / dist) * 2;
-                    } else {
-                        p.statut = "Construction en cours...";
-                        task.progression += 0.4; // Vitesse de construction
+                // Déplacement physique vers la sous-cible calculée
+                let dx = p.currentTargetX - p.x;
+                let dy = p.currentTargetY - p.y;
+                let dist = Math.sqrt(dx*dx + dy*dy);
 
-                        // Rendu visuel immédiat des fondations en transparence pendant qu'il construit
-                        ctx.fillStyle = "rgba(46, 204, 113, 0.3)";
-                        ctx.fillRect(task.x - 30, task.y - 25, 80, 60);
-
-                        if (task.progression >= 100) {
-                            structures.push({
-                                id: task.id,
-                                type: "garden",
-                                x: task.x - 30,
-                                y: task.y - 25,
-                                w: 80,
-                                h: 60,
-                                color: "#27ae60", // Vert herbe
-                                nom: task.nomObjet
-                            });
-                            log(`🛠️ <strong>[Système]</strong> : ${p.name} a terminé la création de : "${task.nomObjet}" !`);
-                            p.tacheSpeciale = null;
-                            p.statut = "Se repose";
-                        }
-                    }
+                if (dist > 3) {
+                    p.x += (dx / dist) * 1.5;
+                    p.y += (dy / dist) * 1.5;
                 } else {
-                    // Autonomie permanente par défaut (Plus de blocage !)
-                    let dx = p.targetX - p.x;
-                    let dy = p.targetY - p.y;
-                    let dist = Math.sqrt(dx*dx + dy*dy);
-
-                    if (dist > 5) {
-                        p.statut = "En déplacement";
-                        p.x += (dx / dist) * 1.5;
-                        p.y += (dy / dist) * 1.5;
-                    } else {
-                        p.statut = "Vaque à ses occupations";
+                    // Si arrivé à la destination finale, gérer les routines
+                    let distFinale = Math.sqrt((p.finalTargetX - p.x)**2 + (p.finalTargetY - p.y)**2);
+                    if (distFinale <= 5 && !p.modeAttente && !p.tacheSpeciale) {
+                        p.statut = "Se repose";
                         p.routineTimer++;
-                        
-                        // Toutes les quelques secondes, il choisit un nouvel endroit logique où aller
-                        if (p.routineTimer > 180) { 
-                            let cibleAleatoire = structures[Math.floor(Math.random() * structures.length)];
-                            p.targetX = cibleAleatoire.x + (cibleAleatoire.w / 2);
-                            p.targetY = cibleAleatoire.y + (cibleAleatoire.h / 2);
+                        if (p.routineTimer > 150) { // Sélection d'un nouveau bâtiment
+                            let bat = structures[Math.floor(Math.random() * structures.length)];
+                            p.finalTargetX = bat.x + (bat.w / 2);
+                            p.finalTargetY = bat.y + (bat.h / 2);
                             p.routineTimer = 0;
                         }
                     }
                 }
 
-                // --- RENDU GRAPHIQUE DES PNJ (Bien visibles) ---
-                ctx.fillStyle = p.color;
-                ctx.beginPath();
-                ctx.arc(p.x, p.y, 12, 0, Math.PI * 2);
-                ctx.fill();
-                ctx.strokeStyle = "#ffffff";
-                ctx.lineWidth = 2;
-                ctx.stroke();
+                // GESTION DES PROJETS DE CONSTRUCTION DYNAMIQUES
+                if (p.tacheSpeciale) {
+                    let t = p.tacheSpeciale;
+                    p.finalTargetX = t.x;
+                    p.finalTargetY = t.y;
 
-                // Lettre du prénom au centre du personnage
-                ctx.fillStyle = "#121212";
-                ctx.font = "bold 12px Arial";
+                    let distChantier = Math.sqrt((t.x - p.x)**2 + (t.y - p.y)**2);
+                    if (distChantier <= 8) {
+                        p.statut = "🔨 Construit : " + t.nomObjet;
+                        t.progression += 0.4;
+
+                        // Rendu du chantier jaune transparent
+                        ctx.fillStyle = "rgba(241, 196, 15, 0.25)";
+                        ctx.fillRect(t.x - 30, t.y - 20, 70, 50);
+
+                        if(t.progression >= 100) {
+                            structures.push({
+                                id: t.id, type: "garden", x: t.x - 30, y: t.y - 20, w: 70, h: 50, color: "#27ae60", nom: "🌲 " + t.nomObjet
+                            });
+                            log(`📌 <strong>[Matrice]</strong> : ${p.name} a fini de bâtir "${t.nomObjet}" !`);
+                            p.tacheSpeciale = null;
+                        }
+                    }
+                }
+
+                // --- RENDU VISUEL DU PERSONNAGE ---
+                ctx.fillStyle = p.color;
+                ctx.beginPath(); ctx.arc(p.x, p.y, 11, 0, Math.PI * 2); ctx.fill();
+                ctx.strokeStyle = "#fff"; ctx.lineWidth = 1.5; ctx.stroke();
+
+                // Lettre repère
+                ctx.fillStyle = "#000"; ctx.font = "bold 11px Arial";
                 ctx.fillText(p.name[0], p.x - 4, p.y + 4);
 
-                // Informations au-dessus de la tête
-                ctx.fillStyle = "#ffffff";
-                ctx.font = "10px Arial";
-                ctx.fillText(p.name, p.x - 12, p.y - 30);
-                ctx.fillStyle = "#00ffcc";
-                ctx.fillText(p.statut, p.x - 25, p.y - 18);
+                // Tags textuels mobiles
+                ctx.fillStyle = "#fff"; ctx.font = "10px Arial";
+                ctx.fillText(p.name, p.x - 12, p.y - 25);
+                ctx.fillStyle = p.modeAttente ? "#ff4757" : "#00ffcc";
+                ctx.fillText(p.statut, p.x - 22, p.y - 14);
 
-                // Affichage visuel de la jauge de progression pour les ordres libres
+                // Jauge de progression
                 if (p.tacheSpeciale) {
-                    ctx.fillStyle = "#7f8c8d";
-                    ctx.fillRect(p.x - 20, p.y + 16, 40, 5);
-                    ctx.fillStyle = "#2ecc71";
-                    ctx.fillRect(p.x - 20, p.y + 16, (p.tacheSpeciale.progression / 100) * 40, 5);
+                    ctx.fillStyle = "#555"; ctx.fillRect(p.x - 15, p.y + 15, 30, 4);
+                    ctx.fillStyle = "#2ecc71"; ctx.fillRect(p.x - 15, p.y + 15, (p.tacheSpeciale.progression / 100) * 30, 4);
                 }
             });
 
-            updateRegistry();
-            requestAnimationFrame(drawWorld);
+            updateUI();
+            requestAnimationFrame(updateAndRender);
         }
 
-        // --- APPEL DE L'INTELLIGENCE ARTIFICIELLE ---
-        async function appelerIA(systemPrompt, userPrompt) {
-            const apiKey = document.getElementById("api-key").value.trim();
-            if (!apiKey) {
-                alert("⚠️ N'oublie pas de coller ta clé API Groq en haut !");
-                return null;
-            }
-
+        // --- ENVOI DE LA COMMANDE À L'IA ---
+        async function appelerIA(sys, user) {
+            const key = document.getElementById("api-key").value.trim();
+            if (!key) return null;
             try {
                 const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
                     method: "POST",
-                    headers: {
-                        "Authorization": `Bearer ${apiKey}`,
-                        "Content-Type": "application/json"
-                    },
+                    headers: { "Authorization": `Bearer ${key}`, "Content-Type": "application/json" },
                     body: JSON.stringify({
                         model: "llama-3.1-8b-instant",
-                        messages: [
-                            { role: "system", content: systemPrompt },
-                            { role: "user", content: userPrompt }
-                        ],
-                        temperature: 0.2,
-                        response_format: { type: "json_object" } // Force un retour au format JSON valide
+                        messages: [{ role: "system", content: sys }, { role: "user", content: user }],
+                        temperature: 0.2, response_format: { type: "json_object" }
                     })
                 });
                 const data = await response.json();
                 return JSON.parse(data.choices[0].message.content.trim());
-            } catch (error) {
-                console.error(error);
-                return null;
-            }
+            } catch (e) { return null; }
         }
 
-        // --- ENVOI ET TRADUCTION DE L'ORDRE PAR L'IA ---
+        // --- LOGIQUE D'ACTION GENERATIVE LIBRE ---
         async function ordonnerActionLibre() {
             const targetName = document.getElementById("chat-target").value;
             const textInput = document.getElementById("chat-input").value.trim();
             if(!textInput) return;
 
             let pnj = habitants.find(h => h.name === targetName);
-            log(`<span style="color:#00ffcc;">⚡ <strong>[Ordre Créateur] à ${pnj.name} :</strong> "${textInput}"</span>`);
+            log(`<span style="color:#00ffcc;">⚡ <strong>[Créateur] à ${pnj.name} :</strong> "${textInput}"</span>`);
             document.getElementById("chat-input").value = "";
 
-            let systemInstruction = `Tu es l'esprit de décision de ${pnj.name} dans une simulation évolutive. L'utilisateur te donne un ordre de modification du monde libre. Tu dois impérativement générer une réponse au format JSON contenant :
-            1. "action": "construire" s'il veut créer quelque chose (jardin, parc, mur), sinon "marcher".
-            2. "phrase": Ce que tu réponds à haute voix face à cet ordre.
-            3. "x": Une coordonnée X cible logique sur la carte (choisis entre 150 et 450 pour éviter le bord).
-            4. "y": Une coordonnée Y cible logique sur la carte (choisis entre 100 et 350, évite la route à 180-230).
-            5. "nomObjet": Le nom de la structure que tu vas bâtir (ex: "Jardin Secret de Guy").`;
+            let systemInstruction = `Tu es l'esprit décisionnel de ${pnj.name} dans un jeu vidéo évolutif. L'utilisateur te donne un ordre direct. Tu dois renvoyer un objet JSON valide contenant obligatoirement :
+            1. "action": "attendre" (si l'ordre demande de ne plus bouger, rester là, stopper), "construire" (s'il s'agit de bâtir un espace/structure), ou "marcher".
+            2. "phrase": Ta réponse RP face à cet ordre (courte).
+            3. "x": Coordonnée X cible cohérente (100 à 500).
+            4. "y": Coordonnée Y cible cohérente (évite la rue : choisis entre 50-140 ou 250-350).
+            5. "nomObjet": Le nom du projet (ex: "Jardin Public") si action=construire.`;
 
-            log(`<span style="color:orange;">🧠 [IA Matrix] Interprétation des données en cours...</span>`);
+            log(`<span style="color:orange;">🧠 [IA] Traduction des impulsions nerveuses...</span>`);
 
-            let simulationData = await appelerIA(systemInstruction, textInput);
+            let res = await appelerIA(systemInstruction, textInput);
 
-            if(simulationData) {
-                log(`🗣️ <strong>${pnj.name} :</strong> "${simulationData.phrase}"`);
-                pnj.conscience = "Exécute un ordre divin";
+            if(res) {
+                log(`🗣️ <strong>${pnj.name} :</strong> "${res.phrase}"`);
 
-                if (simulationData.action === "construire") {
+                if (res.action === "attendre" || textInput.toLowerCase().includes("reste") || textInput.toLowerCase().includes("bouge pas")) {
+                    pnj.modeAttente = true;
+                    pnj.tacheSpeciale = null;
+                    pnj.finalTargetX = pnj.x;
+                    pnj.finalTargetY = pnj.y;
+                    pnj.statut = "Stoppé par le Créateur";
+                } 
+                else if (res.action === "construire") {
+                    pnj.modeAttente = false;
                     pnj.tacheSpeciale = {
-                        id: "struct_" + Date.now(),
-                        nomObjet: simulationData.nomObjet || "Zone Créée",
-                        x: simulationData.x,
-                        y: simulationData.y,
-                        progression: 0
+                        id: "dyn_" + Date.now(), nomObjet: res.nomObjet || "Zone Créée", x: res.x, y: res.y, progression: 0
                     };
                 } else {
-                    pnj.targetX = simulationData.x;
-                    pnj.targetY = simulationData.y;
+                    pnj.modeAttente = false;
+                    pnj.tacheSpeciale = null;
+                    pnj.finalTargetX = res.x;
+                    pnj.finalTargetY = res.y;
                 }
             } else {
-                log(`<span style="color:red;">❌ Échec de la communication IA. Vérifie ta clé ou le format.</span>`);
+                log(`<span style="color:red;">❌ Connexion refusée. Vérifie ta clé API Groq tout en haut !</span>`);
             }
         }
 
-        function updateRegistry() {
+        function updateUI() {
             const reg = document.getElementById("pnj-registry");
             reg.innerHTML = "";
             habitants.forEach(p => {
                 reg.innerHTML += `
                     <div class="pnj-info">
-                        <strong>🧑 Nom : ${p.name}</strong> | Position : (${Math.round(p.x)}, ${Math.round(p.y)})<br>
-                        ⚙️ État Moteur : <span style="color:#00ffcc">${p.statut}</span><br>
-                        🧠 Niveau Conscience : <em>${p.conscience}</em>
+                        <strong>🧑 Citoyen : ${p.name}</strong> | Position: (${Math.round(p.x)}, ${Math.round(p.y)})<br>
+                        ⚙️ État : <span style="color:#00ffcc">${p.statut}</span> | Bloqué sur place : <strong>${p.modeAttente ? 'OUI' : 'NON'}</strong>
                     </div>
                 `;
             });
         }
 
-        // Lancement initial automatique
-        log("Système initialisé. Les citoyens s'activent de façon autonome.");
-        drawWorld();
+        // Allumage initial automatique de la ville
+        updateAndRender();
     </script>
 </body>
 </html>
