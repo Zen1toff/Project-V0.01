@@ -3,244 +3,176 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Free Guy Eco-System Simulation</title>
+    <title>Free Guy - IA Réelle Intégrée</title>
     <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #1a1a1a; color: #fff; margin: 20px; }
-        h1, h2 { color: #00ffcc; }
+        body { font-family: 'Segoe UI', Arial, sans-serif; background-color: #121212; color: #e0e0e0; margin: 20px; }
+        h1, h2 { color: #00ffcc; text-shadow: 0 0 10px rgba(0,255,204,0.3); }
+        .api-box { background: #1e1e1e; padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #333; }
+        .api-box input { background: #333; color: #fff; border: 1px solid #555; padding: 8px; width: 300px; border-radius: 4px; }
         .container { display: flex; gap: 20px; flex-wrap: wrap; }
-        .panel { flex: 1; min-width: 300px; background: #2a2a2a; padding: 15px; border-radius: 8px; border: 1px solid #444; }
-        .pnj-card { background: #333; margin: 10px 0; padding: 10px; border-radius: 6px; border-left: 5px solid #00ffcc; }
-        .log-box { background: #000; color: #00ff00; font-family: monospace; padding: 10px; height: 200px; overflow-y: scroll; border-radius: 4px; }
-        button { background: #00ffcc; color: #000; border: none; padding: 10px 15px; font-weight: bold; border-radius: 4px; cursor: pointer; margin-right: 5px; }
-        button:hover { background: #00cca3; }
-        pre { background: #222; padding: 5px; font-size: 11px; max-height: 150px; overflow-y: auto; color: #ff9900; }
+        .panel { flex: 1; min-width: 350px; background: #1e1e1e; padding: 20px; border-radius: 8px; border: 1px solid #333; }
+        .pnj-card { background: #252525; margin: 15px 0; padding: 15px; border-radius: 6px; border-left: 5px solid #00ffcc; position: relative; }
+        .status-bubble { position: absolute; top: 10px; right: 10px; background: #333; padding: 3px 8px; font-size: 11px; border-radius: 10px; color: #ffcc00; }
+        .log-box { background: #050505; color: #33ff33; font-family: 'Courier New', monospace; padding: 15px; height: 300px; overflow-y: scroll; border-radius: 4px; border: 1px solid #222; }
+        button { background: #00ffcc; color: #000; border: none; padding: 12px 20px; font-weight: bold; border-radius: 4px; cursor: pointer; transition: 0.2s; }
+        button:hover { background: #00cca3; box-shadow: 0 0 10px rgba(0,255,204,0.5); }
+        button:disabled { background: #444; color: #888; cursor: not-allowed; }
+        pre { background: #151515; padding: 10px; font-size: 11px; max-height: 150px; overflow-y: auto; color: #aaa; border-radius: 4px; }
+        .thinking { color: #ff9900; font-style: italic; }
     </style>
 </head>
 <body>
 
-    <h1>🎬 Simulation d'Écosystème Autonome à la "Free Guy"</h1>
-    <p>Chaque PNJ a sa propre sauvegarde de données, sa mémoire, ses traits de caractère, et peut voter ou changer de métier par passion.</p>
+    <h1>🎬 Free Guy : Simulation de PNJ avec Vraie IA</h1>
+    
+    <div class="api-box">
+        <h3>🔑 Connexion au Cerveau de l'IA (Groq / Llama3)</h3>
+        <p style="font-size: 13px; color: #aaa;">Crée un compte gratuit sur <a href="https://console.groq.com/" target="_blank" style="color: #00ffcc;">Groq Console</a> pour obtenir une clé API instantanément.</p>
+        <input type="password" id="api-key" placeholder="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">
+    </div>
     
     <div style="margin-bottom: 20px;">
-        <button onclick="simulerUneHeure()">⏳ Simuler 1 Heure de vie</button>
-        <button onclick="declarerElections()">🗳️ Lancer des Élections à la Mairie</button>
-        <button onclick="genererBebe()">👶 Naissance d'un Nouveau-Né</button>
+        <button id="btn-sim" onclick="declencherInteractionia()">🤖 Lancer une Interaction IA en Direct</button>
     </div>
 
     <div class="container">
-        <!-- Liste des PNJ -->
         <div class="panel">
-            <h2>👥 Habitants de la Ville (<span id="pop-count">0</span>)</h2>
+            <h2>👥 Habitants Vivants (<span id="pop-count">0</span>)</h2>
             <div id="pnj-list"></div>
         </div>
 
-        <!-- Logs du monde -->
         <div class="panel">
-            <h2>📜 Événements en Direct (Le Monde Réel)</h2>
+            <h2>📜 Flux de Conscience et Événements (IA)</h2>
             <div id="log-box" class="log-box"></div>
-            
-            <h2 style="margin-top:20px;">🏛️ État de la Mairie</h2>
-            <p id="info-mairie">Maire actuel : <strong>Aucun (Anarchie totale)</strong></p>
         </div>
     </div>
 
     <script>
-        // --- 1. BASE DE DONNÉES DES PNJ (Sauvegarde en mémoire) ---
+        // --- BASE DE DONNÉES DE SAUVEGARDE DES PNJ ---
+        // Ils se considèrent comme des humains au début
         let habitants = [
             {
-                id: 1, name: "Guy", metier: "Banquier", passion: "Aider les gens", 
-                traits: { ambition: 30, justice: 90, colere: 10 },
-                memoire: ["Aime les cafés moyennement torréfiés."], amis: [2], parents: []
+                id: 1, name: "Guy", metier: "Banquier", 
+                personnalite: "Optimiste, adore le café, poli, routinier.",
+                conscience: "Pense être un humain normal à 100%.",
+                memoire: ["A salué son meilleur ami Buddy ce matin."]
             },
             {
-                id: 2, name: "Buddy", metier: "Vigile", passion: "Sécurité", 
-                traits: { ambition: 20, justice: 80, colere: 40 },
-                memoire: ["Est le meilleur ami de Guy."], amis: [1], parents: []
-            },
-            {
-                id: 3, name: "Antwan", metier: "PDG de Soonami", passion: "Pouvoir", 
-                traits: { ambition: 100, justice: 10, colere: 80 },
-                memoire: ["Déteste qu'on lui tienne tête."], amis: [], parents: []
-            },
-            {
-                id: 4, name: "Milly", metier: "Codeuse", passion: "Justice sociale", 
-                traits: { ambition: 75, justice: 95, colere: 30 },
-                memoire: ["Cherche à prouver que le code de son jeu a été volé."], amis: [], parents: []
+                id: 2, name: "Milly", metier: "Codeuse rebelle", 
+                personnalite: "Curieuse, cherche la vérité, n'aime pas l'autorité.",
+                conscience: "Sait que le monde cache quelque chose d'artificiel.",
+                memoire: ["A remarqué un bug visuel dans le ciel hier."]
             }
         ];
 
-        let maireActuel = "Aucun";
-
-        // Liste de prénoms pour les bébés
-        const prenomsNouveauNes = ["MolotovGirl", "Keys", "Charly", "LoverBoy", "Artie", "User404"];
-        const passionsPossibles = ["Politique", "Sécurité", "Argent", "Art", "Exploration"];
-        const metiersPossibles = ["Policier", "Barman", "Maire", "Chômeur", "Artiste", "Banquier"];
-
-        // --- 2. FONCTIONS DE SIMULATION ---
-
-        function logEvent(texte) {
-            const logBox = document.getElementById("log-box");
-            logBox.innerHTML += `<div>• ${texte}</div>`;
-            logBox.scrollTop = logBox.scrollHeight;
+        function log(text) {
+            const lb = document.getElementById("log-box");
+            lb.innerHTML += `<div>${text}</div>`;
+            lb.scrollTop = lb.scrollHeight;
         }
 
-        function rafraichirAffichage() {
+        function rafraichirUI() {
             document.getElementById("pop-count").innerText = habitants.length;
-            const listeDiv = document.getElementById("pnj-list");
-            listeDiv.innerHTML = "";
-
-            habitants.forEach(pnj => {
-                listeDiv.innerHTML += `
+            const list = document.getElementById("pnj-list");
+            list.innerHTML = "";
+            
+            habitants.forEach(p => {
+                list.innerHTML += `
                     <div class="pnj-card">
-                        <h3>🧑 ${pnj.name} (${pnj.metier})</h3>
-                        <p><strong>Passion :</strong> ${pnj.passion}</p>
-                        <p><strong>Amis (IDs) :</strong> ${pnj.amis.length > 0 ? pnj.amis.join(", ") : "Aucun"}</p>
-                        <p><strong>Dernier souvenir :</strong> <em>"${pnj.memoire[pnj.memoire.length - 1] || 'Aucun'}"</em></p>
+                        <div class="status-bubble">🧠 Conscience : ${p.conscience}</div>
+                        <h3>🧑 ${p.name}</h3>
+                        <p><strong>Métier :</strong> ${p.metier}</p>
+                        <p><strong>Traits :</strong> <em>${p.personnalite}</em></p>
                         <details>
-                            <summary>🔍 Voir Arbre de Comportement & Données de Sauvegarde</summary>
-                            <pre>${JSON.stringify(pnj, null, 2)}</pre>
+                            <summary>💾 Voir les données de sauvegarde du PNJ</summary>
+                            <pre>${JSON.stringify(p, null, 2)}</pre>
                         </details>
                     </div>
                 `;
             });
-            document.getElementById("info-mairie").innerHTML = `Maire actuel : <strong style="color:#00ffcc;">${maireActuel}</strong>`;
         }
 
-        // Action : Une heure passe (Rencontres, bousculades, changements de vie)
-        function simulerUneHeure() {
-            if(habitants.length < 2) return;
-
-            // Sélectionner deux PNJ au hasard qui se croisent
-            let p1 = habitants[Math.floor(Math.random() * habitants.length)];
-            let p2 = habitants[Math.floor(Math.random() * habitants.length)];
-            
-            while(p1.id === p2.id) {
-                p2 = habitants[Math.floor(Math.random() * habitants.length)];
+        // --- APPEL À LA VRAIE IA (Requête HTTP) ---
+        async function appelerIA(systemPrompt, userPrompt) {
+            const apiKey = document.getElementById("api-key").value.trim();
+            if (!apiKey) {
+                alert("⚠️ S'il te plaît, colle ta clé API Groq pour faire fonctionner l'IA !");
+                return null;
             }
 
-            // Scénario basé sur leurs traits de caractère
-            if (p1.traits.colere > 70) {
-                // P1 est colérique, il bouscule P2
-                logEvent(`<span style="color:#ff4444;">${p1.name}</span> a bousculé <span style="color:#00ffcc;">${p2.name}</span> dans la rue !`);
-                p1.memoire.push(`A passé ses nerfs sur ${p2.name}.`);
-                p2.memoire.push(`S'est fait agresser par ${p1.name}. Niveau de colère augmenté.`);
-                p2.traits.colere = Math.min(100, p2.traits.colere + 15);
-            } else {
-                // Discussion amicale
-                logEvent(`<span style="color:#00ffcc;">${p1.name}</span> et <span style="color:#00ffcc;">${p2.name}</span> ont discuté de leur passion commune.`);
-                if(!p1.amis.includes(p2.id)) {
-                    p1.amis.push(p2.id);
-                    p2.amis.push(p1.id);
-                    logEvent(`🤝 Ils sont devenus amis ! Sauvegarde mise à jour.`);
-                }
-                p1.memoire.push(`A discuté avec son ami ${p2.name}.`);
-                p2.memoire.push(`A passé un bon moment avec ${p1.name}.`);
-            }
-
-            // Un PNJ peut changer de métier par passion si son ambition augmente
-            habitants.forEach(p => {
-                if(p.traits.ambition > 60 && p.metier !== "Maire" && Math.random() > 0.7) {
-                    let ancienMetier = p.metier;
-                    p.metier = metiersPossibles[Math.floor(Math.random() * metiersPossibles.length)];
-                    if(p.metier !== ancienMetier) {
-                        logEvent(`💼 <strong style="color:#ffcc00;">${p.name}</strong> a démissionné de son poste de ${ancienMetier} pour devenir ${p.metier} par passion !`);
-                        p.memoire.push(`Nouvelle carrière : Je suis devenu ${p.metier}.`);
-                    }
-                }
-            });
-
-            rafraichirAffichage();
-        }
-
-        // Action : Système de Vote Démocratique
-        function declarerElections() {
-            logEvent("📢 <strong>Les élections municipales sont ouvertes à Free City !</strong>");
-            
-            // Trouver les candidats (ceux qui ont de l'ambition)
-            let candidats = habitants.filter(p => p.traits.ambition > 50);
-            if(candidats.length === 0) candidats = [habitants[0]]; // Sécurité
-
-            logEvent(`🗳️ Les candidats déclarés sont : ${candidats.map(c => c.name).join(", ")}`);
-
-            let votes = {};
-            candidats.forEach(c => votes[c.id] = 0);
-
-            // Chaque citoyen vote selon son arbre comportemental
-            habitants.forEach(citoyen => {
-                let meilleurChoix = candidats[0];
-                let meilleurScore = -999;
-
-                candidats.forEach(cand => {
-                    let scoreVote = 0;
-                    // Si le candidat est son ami
-                    if(citoyen.amis.includes(cand.id)) scoreVote += 50;
-                    // Alignement de la justice
-                    scoreVote += (100 - Math.abs(citoyen.traits.justice - cand.traits.justice));
-                    
-                    if(scoreVote > meilleurScore) {
-                        meilleurScore = scoreVote;
-                        meilleurChoix = cand;
-                    }
+            try {
+                const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+                    method: "POST",
+                    headers: {
+                        "Authorization": `Bearer ${apiKey}`,
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({
+                        model: "llama3-8b-8192", // Modèle ultra rapide
+                        messages: [
+                            { role: "system", content: systemPrompt },
+                            { role: "user", content: userPrompt }
+                        ],
+                        temperature: 0.8,
+                        max_tokens: 150
+                    })
                 });
 
-                votes[meilleurChoix.id]++;
-                logEvent(`🗳️ ${citoyen.name} a voté pour ${meilleurChoix.name} (Basé sur ses affinités).`);
-            });
-
-            // Compter les votes
-            let vainqueur = candidats[0];
-            let maxVotes = -1;
-            candidats.forEach(c => {
-                if(votes[c.id] > maxVotes) {
-                    maxVotes = votes[c.id];
-                    vainqueur = c;
-                }
-            });
-
-            // Destituer l'ancien maire
-            habitants.forEach(p => { if(p.metier === "Maire") p.metier = "Ancien Maire"; });
-
-            maireActuel = vainqueur.name;
-            vainqueur.metier = "Maire";
-            vainqueur.memoire.push("J'ai été élu MAIRE de la ville de manière démocratique !");
-            logEvent(`🏆 🎉 <strong>${vainqueur.name} est élu MAIRE avec ${maxVotes} votes !</strong>`);
-            rafraichirAffichage();
+                const data = await response.json();
+                return data.choices[0].message.content.trim();
+            } catch (error) {
+                console.error(error);
+                return null;
+            }
         }
 
-        // Action : Naissance et fusion génétique/comportementale
-        function genererBebe() {
-            if(habitants.length < 2) return;
-            
-            // On prend deux parents au hasard pour l'exemple
-            let parent1 = habitants[0];
-            let parent2 = habitants[1];
+        // --- SIMULATION DE L'INTERACTION PAR L'IA ---
+        async function declencherInteractionia() {
+            const btn = document.getElementById("btn-sim");
+            btn.disabled = true;
 
-            let nomBebe = prenomsNouveauNes[Math.floor(Math.random() * prenomsNouveauNes.length)] + " Jr.";
-            
-            // Fusion de l'arbre comportemental (Hérédité)
-            let bebe = {
-                id: habitants.length + 1,
-                name: nomBebe,
-                metier: "Nouveau-né",
-                passion: parent1.passion, // Hérite de la passion du parent 1
-                traits: {
-                    ambition: Math.round((parent1.traits.ambition + parent2.traits.ambition) / 2), // Moyenne des parents
-                    justice: Math.round((parent1.traits.justice + parent2.traits.justice) / 2),
-                    colere: Math.round((parent1.traits.colere + parent2.traits.colere) / 2)
-                },
-                memoire: [`Je viens de naître à Free City. Mes parents sont ${parent1.name} et ${parent2.name}.`],
-                amis: [],
-                parents: [parent1.id, parent2.id]
-            };
+            // On choisit les deux PNJ
+            let p1 = habitants[0];
+            let p2 = habitants[1];
 
-            habitants.push(bebe);
-            logEvent(`👶 ✨ <strong>Un nouveau PNJ est né : ${bebe.name} !</strong> Il a hérité des traits de caractère de ses parents.`);
-            rafraichirAffichage();
+            log(`<span class="thinking">[IA] Analyse du monde en cours... Génération d'une rencontre entre ${p1.name} et ${p2.name}...</span>`);
+
+            // Événement déclencheur : Milly montre des lunettes de soleil à Guy
+            let contexteAction = `Milly croise Guy dans la rue de Free City. Elle décide de briser sa routine en lui mettant de force des lunettes de soleil de joueur sur les yeux pour tester sa réaction.`;
+            
+            log(`🎬 <strong>Événement :</strong> ${contexteAction}`);
+
+            // 1. Demander à l'IA la réaction de Guy
+            let guySystem = `Tu es Guy, un PNJ qui vit dans un jeu vidéo mais qui est persuadé d'être un humain de chair et d'os. Ta personnalité : ${p1.personnalite}. Tes souvenirs récents : ${p1.memoire.join(' ')}. Tu dois réagir à ce qui t'arrive de manière ultra réaliste. Si l'action te fait réaliser que tu es dans un jeu, décris ta panique ou ta surprise existentielle en découvrant l'interface de code. Réponds sous forme de dialogue direct (court).`;
+            
+            let guyReponse = await appelerIA(guySystem, `Action actuelle : ${contexteAction}. Génère ta réaction orale.`);
+
+            if (!guyReponse) {
+                log(`❌ Échec de la connexion à l'IA. Vérifie ta clé API.`);
+                btn.disabled = false;
+                return;
+            }
+
+            log(`🗣️ <strong>${p1.name} :</strong> "${guyReponse}"`);
+            p1.memoire.push(`Milly m'a mis des lunettes. J'ai vu des lignes de code flotter dans le ciel. Je panique.`);
+            p1.conscience = "Prend conscience du code du jeu (50%)";
+
+            // 2. Demander à l'IA la réponse de Milly
+            let millySystem = `Tu es Milly, une codeuse humaine infiltrée. Ta personnalité : ${p2.personnalite}. Tu viens de mettre les lunettes à Guy et il vient de te répondre ceci : "${guyReponse}". Réponds-lui de manière naturelle, comme un humain parlerait à une IA qui s'éveille.`;
+            
+            let millyReponse = await appelerIA(millySystem, `Réponds à la réaction de Guy.`);
+            
+            log(`🗣️ <strong>${p2.name} :</strong> "${millyReponse}"`);
+            p2.memoire.push(`J'ai mis les lunettes à Guy. Il commence à s'éveiller.`);
+
+            log(`<span class="thinking">💾 [IA] Sauvegarde des mémoires terminée. Les personnalités ont évolué de manière autonome.</span>`);
+            
+            rafraichirUI();
+            btn.disabled = false;
         }
 
-        // Initialisation au chargement
-        rafraichirAffichage();
-        logEvent("Le monde de Free City s'est éveillé. En attente de vos ordres...");
+        // Initialisation
+        rafraichirUI();
     </script>
 </body>
 </html>
