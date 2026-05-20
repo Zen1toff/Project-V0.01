@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Free Guy - Simulation Urbaine IA Totale</title>
+    <title>Free Guy - Simulation IA Vocale Totale</title>
     <style>
         body { font-family: 'Segoe UI', Arial, sans-serif; background-color: #121212; color: #e0e0e0; margin: 20px; }
         h1, h2 { color: #00ffcc; text-shadow: 0 0 10px rgba(0,255,204,0.3); }
@@ -12,18 +12,22 @@
         .container { display: flex; gap: 20px; flex-wrap: wrap; }
         .panel { flex: 1; min-width: 400px; background: #1e1e1e; padding: 20px; border-radius: 8px; border: 1px solid #333; }
         #world-canvas { background: #1a1a1a; border: 2px solid #00ffcc; border-radius: 8px; display: block; box-shadow: 0 0 15px rgba(0,255,204,0.2); }
-        .log-box { background: #050505; color: #33ff33; font-family: 'Courier New', monospace; padding: 15px; height: 280px; overflow-y: scroll; border-radius: 4px; border: 1px solid #222; font-size: 13px; margin-bottom: 15px; }
-        .chat-box { background: #252525; padding: 15px; border-radius: 6px; border: 1px solid #444; }
+        .log-box { background: #050505; color: #33ff33; font-family: 'Courier New', monospace; padding: 15px; height: 260px; overflow-y: scroll; border-radius: 4px; border: 1px solid #222; font-size: 13px; margin-bottom: 15px; }
+        .chat-box { background: #252525; padding: 15px; border-radius: 6px; border: 1px solid #444; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
         .chat-box select, .chat-box input { background: #333; color: #fff; border: 1px solid #555; padding: 10px; border-radius: 4px; }
-        .chat-box input { width: 50%; }
-        button { background: #00ffcc; color: #000; border: none; padding: 10px 15px; font-weight: bold; border-radius: 4px; cursor: pointer; }
+        .chat-box input { flex: 1; min-width: 200px; }
+        button { background: #00ffcc; color: #000; border: none; padding: 10px 15px; font-weight: bold; border-radius: 4px; cursor: pointer; transition: 0.2s; }
         button:hover { background: #00cca3; }
+        .btn-mic { background: #ff4757; color: white; }
+        .btn-mic:hover { background: #ff6b81; }
+        .btn-mic.recording { background: #2ed573; animation: pulse 1s infinite; }
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.6; } 100% { opacity: 1; } }
         .pnj-info { font-size: 12px; background: #2a2a2a; padding: 8px; margin-top: 5px; border-radius: 4px; border-left: 3px solid #00ffcc; }
     </style>
 </head>
 <body>
 
-    <h1>🎬 Free Guy - Ville IA Autonome et Intelligente</h1>
+    <h1>🎬 Free Guy - Ville IA avec Interaction Vocale</h1>
     
     <div class="api-box">
         <strong>🔑 Connexion au Cerveau (Clé API Groq) :</strong>
@@ -40,14 +44,15 @@
             <h2>📜 Flux d'Événements & Conscience active</h2>
             <div id="log-box" class="log-box"></div>
             
-            <h2>💬 Donner un Ordre Libre (Mode Créateur)</h2>
+            <h2>🎙️ Parler en direct au PNJ (Mode Créateur)</h2>
             <div class="chat-box">
                 <select id="chat-target">
-                    <option value="Guy">Guy</option>
-                    <option value="Milly">Milly</option>
+                    <option value="Guy">Guy (Voix Homme)</option>
+                    <option value="Milly">Milly (Voix Femme)</option>
                 </select>
-                <input type="text" id="chat-input" placeholder="Ex: Reste ici / Crée une piscine verte au centre...">
-                <button onclick="ordonnerActionLibre()">Soumettre l'ordre</button>
+                <input type="text" id="chat-input" placeholder="Parle avec le micro ou écris ici...">
+                <button id="mic-button" class="btn-mic" onclick="toggleMicrophone()">🎤 Parler</button>
+                <button onclick="ordonnerActionLibre()">Envoyer</button>
             </div>
             
             <div id="pnj-registry" style="margin-top: 15px;"></div>
@@ -61,7 +66,7 @@
         // --- GÉOMÉTRIE DU MONDE ---
         const TROTTOIR_HAUT = 165;
         const TROTTOIR_BAS = 235;
-        const PASSAGE_X = 300; // Position X du passage piéton central
+        const PASSAGE_X = 300;
 
         let structures = [
             { id: "maisonGuy", type: "building", x: 40, y: 30, w: 100, h: 70, color: "#1f3a52", nom: "🏠 Maison de Guy" },
@@ -76,9 +81,82 @@
         ];
 
         let habitants = [
-            { name: "Guy", color: "#00ffcc", x: 90, y: 110, finalTargetX: 90, finalTargetY: 110, currentTargetX: 90, currentTargetY: 110, statut: "Se promène", routineTimer: 0, tacheSpeciale: null, modeAttente: false },
-            { name: "Milly", color: "#ff00ff", x: 510, y: 110, finalTargetX: 510, finalTargetY: 110, currentTargetX: 510, currentTargetY: 110, statut: "En exploration", routineTimer: 0, tacheSpeciale: null, modeAttente: false }
+            { name: "Guy", color: "#00ffcc", x: 90, y: 110, finalTargetX: 90, finalTargetY: 110, currentTargetX: 90, currentTargetY: 110, statut: "Se promène", routineTimer: 0, tacheSpeciale: null, modeAttente: false, genreVoix: "male" },
+            { name: "Milly", color: "#ff00ff", x: 510, y: 110, finalTargetX: 510, finalTargetY: 110, currentTargetX: 510, currentTargetY: 110, statut: "En exploration", routineTimer: 0, tacheSpeciale: null, modeAttente: false, genreVoix: "female" }
         ];
+
+        // --- RECONNAISSANCE VOCALE (Écouter le joueur) ---
+        let recognition;
+        let isRecording = false;
+
+        if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            recognition = new SpeechRecognition();
+            recognition.lang = 'fr-FR';
+            recognition.interimResults = false;
+
+            recognition.onresult = (event) => {
+                const texteEntendu = event.results[0][0].transcript;
+                document.getElementById("chat-input").value = texteEntendu;
+                log(`<span style="color:#aaa;">🎙️ [Micro entendu] : "${texteEntendu}"</span>`);
+                ordonnerActionLibre(); // Envoie automatiquement l'ordre dès que tu as fini de parler !
+            };
+
+            recognition.onend = () => {
+                isRecording = false;
+                document.getElementById("mic-button").classList.remove("recording");
+                document.getElementById("mic-button").innerHTML = "🎤 Parler";
+            };
+        }
+
+        function toggleMicrophone() {
+            if (!recognition) {
+                alert("La reconnaissance vocale n'est pas supportée sur ce navigateur. Essaie sur Chrome/Edge.");
+                return;
+            }
+            if (isRecording) {
+                recognition.stop();
+            } else {
+                isRecording = true;
+                document.getElementById("mic-button").classList.add("recording");
+                document.getElementById("mic-button").innerHTML = "🛑 Écoute...";
+                recognition.start();
+            }
+        }
+
+        // --- SYNTHÈSE VOCALE (Faire parler le PNJ avec sa propre voix) ---
+        function faireParlerPNJ(texte, genre) {
+            if ('speechSynthesis' in window) {
+                // Stopper toute voix en cours
+                window.speechSynthesis.cancel();
+
+                let utterance = new SpeechSynthesisUtterance(texte);
+                utterance.lang = 'fr-FR';
+                
+                // Récupérer toutes les voix disponibles sur le système
+                let voices = window.speechSynthesis.getVoices();
+                
+                // Assigner une voix en fonction du genre du PNJ
+                if (genre === "male") {
+                    // Cherche une voix d'homme fr, ou prend la première par défaut
+                    utterance.voice = voices.find(v => v.lang.includes('fr') && (v.name.toLowerCase().includes('google') || v.name.toLowerCase().includes('david') || v.name.toLowerCase().includes('homme'))) || voices[0];
+                    utterance.pitch = 0.9; // Légèrement plus grave pour Guy
+                    utterance.rate = 1.0;
+                } else {
+                    // Cherche une voix de femme fr
+                    utterance.voice = voices.find(v => v.lang.includes('fr') && (v.name.toLowerCase().includes('hortense') || v.name.toLowerCase().includes('zira') || v.name.toLowerCase().includes('femme') || v.name.toLowerCase().includes('julie'))) || voices[1] || voices[0];
+                    utterance.pitch = 1.2; // Plus aiguë et dynamique pour Milly
+                    utterance.rate = 1.05;
+                }
+
+                window.speechSynthesis.speak(utterance);
+            }
+        }
+
+        // Charger les voix en arrière-plan (requis par certains navigateurs comme Chrome)
+        if ('speechSynthesis' in window) {
+            window.speechSynthesis.onvoiceschanged = () => { window.speechSynthesis.getVoices(); };
+        }
 
         function log(text) {
             const lb = document.getElementById("log-box");
@@ -86,162 +164,110 @@
             lb.scrollTop = lb.scrollHeight;
         }
 
-        // --- PATHFINDING URBAIN (Calcul des trajectoires par les trottoirs) ---
+        // --- PATHFINDING URBAIN (Passage piéton obligatoire) ---
         function calculerEtapeSuivante(pnj) {
-            // Si le PNJ est en mode attente strict, sa cible reste sa position actuelle
             if (pnj.modeAttente) {
-                pnj.currentTargetX = pnj.x;
-                pnj.currentTargetY = pnj.y;
+                pnj.currentTargetX = pnj.x; pnj.currentTargetY = pnj.y;
                 return;
             }
-
             let x1 = pnj.x; let y1 = pnj.y;
             let x2 = pnj.finalTargetX; let y2 = pnj.finalTargetY;
 
-            // Déterminer si le PNJ doit traverser la route (changement de côté haut/bas)
-            let departEnHaut = (y1 < 180);
-            let arriveeEnBas = (y2 > 230);
-            let departEnBas = (y1 > 230);
-            let arriveeEnHaut = (y2 < 180);
+            let departEnHaut = (y1 < 180); let arriveeEnBas = (y2 > 230);
+            let departEnBas = (y1 > 230); let arriveeEnHaut = (y2 < 180);
 
             if ((departEnHaut && arriveeEnBas) || (departEnBas && arriveeEnHaut)) {
-                // ÉTAPE 1 : Si le PNJ n'est pas encore sur l'axe du passage piéton en X
                 if (Math.abs(x1 - PASSAGE_X) > 10 && ((departEnHaut && Math.abs(y1 - TROTTOIR_HAUT) > 5) || (departEnBas && Math.abs(y1 - TROTTOIR_BAS) > 5))) {
-                    pnj.currentTargetX = x1;
-                    pnj.currentTargetY = departEnHaut ? TROTTOIR_HAUT : TROTTOIR_BAS;
+                    pnj.currentTargetX = x1; pnj.currentTargetY = departEnHaut ? TROTTOIR_HAUT : TROTTOIR_BAS;
                     pnj.statut = "Rejoint le trottoir";
-                } 
-                // ÉTAPE 2 : Marcher le long du trottoir jusqu'au passage piéton
-                else if (Math.abs(x1 - PASSAGE_X) > 8) {
-                    pnj.currentTargetX = PASSAGE_X;
-                    pnj.currentTargetY = departEnHaut ? TROTTOIR_HAUT : TROTTOIR_BAS;
-                    pnj.statut = "Marche vers le passage piéton";
-                } 
-                // ÉTAPE 3 : Traverser la route au niveau du passage piéton uniquement
-                else if ((departEnHaut && y1 < TROTTOIR_BAS) || (departEnBas && y1 > TROTTOIR_HAUT)) {
-                    pnj.currentTargetX = PASSAGE_X;
-                    pnj.currentTargetY = departEnHaut ? TROTTOIR_BAS : TROTTOIR_HAUT;
-                    pnj.statut = "📢 Traverse au passage piéton";
+                } else if (Math.abs(x1 - PASSAGE_X) > 8) {
+                    pnj.currentTargetX = PASSAGE_X; pnj.currentTargetY = departEnHaut ? TROTTOIR_HAUT : TROTTOIR_BAS;
+                    pnj.statut = "Va au passage piéton";
+                } else if ((departEnHaut && y1 < TROTTOIR_BAS) || (departEnBas && y1 > TROTTOIR_HAUT)) {
+                    pnj.currentTargetX = PASSAGE_X; pnj.currentTargetY = departEnHaut ? TROTTOIR_BAS : TROTTOIR_HAUT;
+                    pnj.statut = "📢 Traverse la route";
                 }
             } else {
-                // Si la cible est du même côté de la rue, déplacement direct le long du trottoir ou vers le bâtiment
-                pnj.currentTargetX = x2;
-                pnj.currentTargetY = y2;
+                pnj.currentTargetX = x2; pnj.currentTargetY = y2;
             }
         }
 
-        // --- BOUCLE DE SIMULATION GRAPHIQUE (60 FPS) ---
+        // --- BOUCLE DE RENDU ET LOGIQUE (60 FPS) ---
         function updateAndRender() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-            // Rues (Gris foncé)
-            ctx.fillStyle = "#2d3436";
-            ctx.fillRect(0, 180, 600, 50);
-            
-            // Lignes de séparation blanches
+            // Rues
+            ctx.fillStyle = "#2d3436"; ctx.fillRect(0, 180, 600, 50);
             ctx.fillStyle = "#ffffff";
             for(let i = 0; i < 600; i += 40) ctx.fillRect(i, 204, 20, 2);
-
-            // Passage Piéton (Sécurisé) au milieu
             for(let j = 180; j < 230; j += 10) ctx.fillRect(PASSAGE_X - 15, j, 30, 5);
 
-            // Trottoirs de guidage (Gris clair)
-            ctx.fillStyle = "#555";
-            ctx.fillRect(0, TROTTOIR_HAUT - 4, 600, 4);
-            ctx.fillRect(0, TROTTOIR_BAS, 600, 4);
+            // Trottoirs
+            ctx.fillStyle = "#555"; ctx.fillRect(0, TROTTOIR_HAUT - 4, 600, 4); ctx.fillRect(0, TROTTOIR_BAS, 600, 4);
 
-            // Structures & Projets IA
+            // Bâtiments
             structures.forEach(s => {
-                ctx.fillStyle = s.color;
-                ctx.fillRect(s.x, s.y, s.w, s.h);
-                ctx.strokeStyle = "#00ffcc";
-                ctx.strokeRect(s.x, s.y, s.w, s.h);
-                ctx.fillStyle = "#fff"; ctx.font = "bold 11px Arial";
-                ctx.fillText(s.nom, s.x + 8, s.y + 22);
-
+                ctx.fillStyle = s.color; ctx.fillRect(s.x, s.y, s.w, s.h);
+                ctx.strokeStyle = "#00ffcc"; ctx.strokeRect(s.x, s.y, s.w, s.h);
+                ctx.fillStyle = "#fff"; ctx.font = "bold 11px Arial"; ctx.fillText(s.nom, s.x + 8, s.y + 22);
                 if (s.type === "garden") {
                     ctx.fillStyle = "#f1c40f"; ctx.fillRect(s.x + 15, s.y + 35, 5, 5);
                     ctx.fillStyle = "#e84393"; ctx.fillRect(s.x + 40, s.y + 40, 5, 5);
                 }
             });
 
-            // Voitures autonomes
+            // Voitures
             voitures.forEach(v => {
                 v.x += v.vitesse;
                 if (v.vitesse > 0 && v.x > 600) v.x = -50;
                 if (v.vitesse < 0 && v.x < -50) v.x = 600;
-                ctx.fillStyle = v.color;
-                ctx.fillRect(v.x, v.y, 42, 16);
+                ctx.fillStyle = v.color; ctx.fillRect(v.x, v.y, 42, 16);
             });
 
-            // Déplacements Physiques des PNJ
+            // PNJ
             habitants.forEach(p => {
                 calculerEtapeSuivante(p);
 
-                // Déplacement physique vers la sous-cible calculée
-                let dx = p.currentTargetX - p.x;
-                let dy = p.currentTargetY - p.y;
+                let dx = p.currentTargetX - p.x; let dy = p.currentTargetY - p.y;
                 let dist = Math.sqrt(dx*dx + dy*dy);
 
                 if (dist > 3) {
-                    p.x += (dx / dist) * 1.5;
-                    p.y += (dy / dist) * 1.5;
+                    p.x += (dx / dist) * 1.5; p.y += (dy / dist) * 1.5;
                 } else {
-                    // Si arrivé à la destination finale, gérer les routines
                     let distFinale = Math.sqrt((p.finalTargetX - p.x)**2 + (p.finalTargetY - p.y)**2);
                     if (distFinale <= 5 && !p.modeAttente && !p.tacheSpeciale) {
                         p.statut = "Se repose";
                         p.routineTimer++;
-                        if (p.routineTimer > 150) { // Sélection d'un nouveau bâtiment
+                        if (p.routineTimer > 150) {
                             let bat = structures[Math.floor(Math.random() * structures.length)];
-                            p.finalTargetX = bat.x + (bat.w / 2);
-                            p.finalTargetY = bat.y + (bat.h / 2);
+                            p.finalTargetX = bat.x + (bat.w / 2); p.finalTargetY = bat.y + (bat.h / 2);
                             p.routineTimer = 0;
                         }
                     }
                 }
 
-                // GESTION DES PROJETS DE CONSTRUCTION DYNAMIQUES
+                // Chantiers de construction IA
                 if (p.tacheSpeciale) {
-                    let t = p.tacheSpeciale;
-                    p.finalTargetX = t.x;
-                    p.finalTargetY = t.y;
-
+                    let t = p.tacheSpeciale; p.finalTargetX = t.x; p.finalTargetY = t.y;
                     let distChantier = Math.sqrt((t.x - p.x)**2 + (t.y - p.y)**2);
                     if (distChantier <= 8) {
-                        p.statut = "🔨 Construit : " + t.nomObjet;
-                        t.progression += 0.4;
-
-                        // Rendu du chantier jaune transparent
-                        ctx.fillStyle = "rgba(241, 196, 15, 0.25)";
-                        ctx.fillRect(t.x - 30, t.y - 20, 70, 50);
-
+                        p.statut = "🔨 Bâtit : " + t.nomObjet; t.progression += 0.4;
+                        ctx.fillStyle = "rgba(241, 196, 15, 0.25)"; ctx.fillRect(t.x - 30, t.y - 20, 70, 50);
                         if(t.progression >= 100) {
-                            structures.push({
-                                id: t.id, type: "garden", x: t.x - 30, y: t.y - 20, w: 70, h: 50, color: "#27ae60", nom: "🌲 " + t.nomObjet
-                            });
+                            structures.push({ id: t.id, type: "garden", x: t.x - 30, y: t.y - 20, w: 70, h: 50, color: "#27ae60", nom: "🌲 " + t.nomObjet });
                             log(`📌 <strong>[Matrice]</strong> : ${p.name} a fini de bâtir "${t.nomObjet}" !`);
                             p.tacheSpeciale = null;
                         }
                     }
                 }
 
-                // --- RENDU VISUEL DU PERSONNAGE ---
-                ctx.fillStyle = p.color;
-                ctx.beginPath(); ctx.arc(p.x, p.y, 11, 0, Math.PI * 2); ctx.fill();
+                // Rendu des ronds
+                ctx.fillStyle = p.color; ctx.beginPath(); ctx.arc(p.x, p.y, 11, 0, Math.PI * 2); ctx.fill();
                 ctx.strokeStyle = "#fff"; ctx.lineWidth = 1.5; ctx.stroke();
+                ctx.fillStyle = "#000"; ctx.font = "bold 11px Arial"; ctx.fillText(p.name[0], p.x - 4, p.y + 4);
+                ctx.fillStyle = "#fff"; ctx.font = "10px Arial"; ctx.fillText(p.name, p.x - 12, p.y - 25);
+                ctx.fillStyle = p.modeAttente ? "#ff4757" : "#00ffcc"; ctx.fillText(p.statut, p.x - 22, p.y - 14);
 
-                // Lettre repère
-                ctx.fillStyle = "#000"; ctx.font = "bold 11px Arial";
-                ctx.fillText(p.name[0], p.x - 4, p.y + 4);
-
-                // Tags textuels mobiles
-                ctx.fillStyle = "#fff"; ctx.font = "10px Arial";
-                ctx.fillText(p.name, p.x - 12, p.y - 25);
-                ctx.fillStyle = p.modeAttente ? "#ff4757" : "#00ffcc";
-                ctx.fillText(p.statut, p.x - 22, p.y - 14);
-
-                // Jauge de progression
                 if (p.tacheSpeciale) {
                     ctx.fillStyle = "#555"; ctx.fillRect(p.x - 15, p.y + 15, 30, 4);
                     ctx.fillStyle = "#2ecc71"; ctx.fillRect(p.x - 15, p.y + 15, (p.tacheSpeciale.progression / 100) * 30, 4);
@@ -252,7 +278,7 @@
             requestAnimationFrame(updateAndRender);
         }
 
-        // --- ENVOI DE LA COMMANDE À L'IA ---
+        // --- APPEL CONNECTIVITÉ IA ---
         async function appelerIA(sys, user) {
             const key = document.getElementById("api-key").value.trim();
             if (!key) return null;
@@ -271,7 +297,7 @@
             } catch (e) { return null; }
         }
 
-        // --- LOGIQUE D'ACTION GENERATIVE LIBRE ---
+        // --- ACTION ET TRAITEMENT GÉNÉRATIF ---
         async function ordonnerActionLibre() {
             const targetName = document.getElementById("chat-target").value;
             const textInput = document.getElementById("chat-input").value.trim();
@@ -281,40 +307,37 @@
             log(`<span style="color:#00ffcc;">⚡ <strong>[Créateur] à ${pnj.name} :</strong> "${textInput}"</span>`);
             document.getElementById("chat-input").value = "";
 
-            let systemInstruction = `Tu es l'esprit décisionnel de ${pnj.name} dans un jeu vidéo évolutif. L'utilisateur te donne un ordre direct. Tu dois renvoyer un objet JSON valide contenant obligatoirement :
-            1. "action": "attendre" (si l'ordre demande de ne plus bouger, rester là, stopper), "construire" (s'il s'agit de bâtir un espace/structure), ou "marcher".
-            2. "phrase": Ta réponse RP face à cet ordre (courte).
-            3. "x": Coordonnée X cible cohérente (100 à 500).
-            4. "y": Coordonnée Y cible cohérente (évite la rue : choisis entre 50-140 ou 250-350).
-            5. "nomObjet": Le nom du projet (ex: "Jardin Public") si action=construire.`;
+            let systemInstruction = `Tu es l'esprit de ${pnj.name} dans Free City. Réponds au créateur en JSON.
+            Tu dois renvoyer un JSON avec :
+            1. "action": "attendre" (si on te dit de stopper, rester là, s'arrêter), "construire" (s'il faut créer une structure/jardin), ou "marcher".
+            2. "phrase": Ta réponse vocale (très courte, maximum 15 mots).
+            3. "x": Destination X logique (100 à 500).
+            4. "y": Destination Y logique (50-140 ou 250-350, pas sur la route).
+            5. "nomObjet": Nom du projet si tu dois construire.`;
 
-            log(`<span style="color:orange;">🧠 [IA] Traduction des impulsions nerveuses...</span>`);
+            log(`<span style="color:orange;">🧠 [IA] Calcul de la réponse vocale...</span>`);
 
             let res = await appelerIA(systemInstruction, textInput);
 
             if(res) {
                 log(`🗣️ <strong>${pnj.name} :</strong> "${res.phrase}"`);
+                
+                // LE PNJ PARLE EN DIRECT AVEC SA PROPRE VOIX !
+                faireParlerPNJ(res.phrase, pnj.genreVoix);
 
                 if (res.action === "attendre" || textInput.toLowerCase().includes("reste") || textInput.toLowerCase().includes("bouge pas")) {
-                    pnj.modeAttente = true;
-                    pnj.tacheSpeciale = null;
-                    pnj.finalTargetX = pnj.x;
-                    pnj.finalTargetY = pnj.y;
+                    pnj.modeAttente = true; pnj.tacheSpeciale = null;
+                    pnj.finalTargetX = pnj.x; pnj.finalTargetY = pnj.y;
                     pnj.statut = "Stoppé par le Créateur";
-                } 
-                else if (res.action === "construire") {
+                } else if (res.action === "construire") {
                     pnj.modeAttente = false;
-                    pnj.tacheSpeciale = {
-                        id: "dyn_" + Date.now(), nomObjet: res.nomObjet || "Zone Créée", x: res.x, y: res.y, progression: 0
-                    };
+                    pnj.tacheSpeciale = { id: "dyn_" + Date.now(), nomObjet: res.nomObjet || "Zone Créée", x: res.x, y: res.y, progression: 0 };
                 } else {
-                    pnj.modeAttente = false;
-                    pnj.tacheSpeciale = null;
-                    pnj.finalTargetX = res.x;
-                    pnj.finalTargetY = res.y;
+                    pnj.modeAttente = false; pnj.tacheSpeciale = null;
+                    pnj.finalTargetX = res.x; pnj.finalTargetY = res.y;
                 }
             } else {
-                log(`<span style="color:red;">❌ Connexion refusée. Vérifie ta clé API Groq tout en haut !</span>`);
+                log(`<span style="color:red;">❌ Connexion refusée. Vérifie ta clé API !</span>`);
             }
         }
 
@@ -324,14 +347,13 @@
             habitants.forEach(p => {
                 reg.innerHTML += `
                     <div class="pnj-info">
-                        <strong>🧑 Citoyen : ${p.name}</strong> | Position: (${Math.round(p.x)}, ${Math.round(p.y)})<br>
-                        ⚙️ État : <span style="color:#00ffcc">${p.statut}</span> | Bloqué sur place : <strong>${p.modeAttente ? 'OUI' : 'NON'}</strong>
+                        <strong>🧑 PNJ : ${p.name}</strong> | Position: (${Math.round(p.x)}, ${Math.round(p.y)})<br>
+                        ⚙️ Statut : <span style="color:#00ffcc">${p.statut}</span> | Fixé : <strong>${p.modeAttente ? 'OUI' : 'NON'}</strong>
                     </div>
                 `;
             });
         }
 
-        // Allumage initial automatique de la ville
         updateAndRender();
     </script>
 </body>
