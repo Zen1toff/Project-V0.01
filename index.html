@@ -92,11 +92,11 @@
             });
         }
 
-        // --- APPEL À LA VRAIE IA (Requête HTTP) ---
+      // --- APPEL À LA VRAIE IA ---
         async function appelerIA(systemPrompt, userPrompt) {
             const apiKey = document.getElementById("api-key").value.trim();
             if (!apiKey) {
-                alert("⚠️ S'il te plaît, colle ta clé API Groq pour faire fonctionner l'IA !");
+                alert("⚠️ S'il te plaît, colle ta clé API Groq !");
                 return null;
             }
 
@@ -108,17 +108,23 @@
                         "Content-Type": "application/json"
                     },
                     body: JSON.stringify({
-                        model: "llama3-8b-8192", // Modèle ultra rapide
+                        model: "llama-3.1-8b-instant", // Changement pour un modèle plus récent et stable
                         messages: [
                             { role: "system", content: systemPrompt },
                             { role: "user", content: userPrompt }
                         ],
-                        temperature: 0.8,
-                        max_tokens: 150
+                        temperature: 0.8
                     })
                 });
 
                 const data = await response.json();
+                
+                // Si Groq renvoie une erreur textuelle
+                if(data.error) {
+                    console.error(data.error);
+                    return "Erreur API : " + data.error.message;
+                }
+
                 return data.choices[0].message.content.trim();
             } catch (error) {
                 console.error(error);
