@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Free Guy - IA Réelle Intégrée</title>
+    <title>Free Guy - Monde Virtuel 2D & IA</title>
     <style>
         body { font-family: 'Segoe UI', Arial, sans-serif; background-color: #121212; color: #e0e0e0; margin: 20px; }
         h1, h2 { color: #00ffcc; text-shadow: 0 0 10px rgba(0,255,204,0.3); }
@@ -11,94 +11,164 @@
         .api-box input { background: #333; color: #fff; border: 1px solid #555; padding: 8px; width: 300px; border-radius: 4px; }
         .container { display: flex; gap: 20px; flex-wrap: wrap; }
         .panel { flex: 1; min-width: 350px; background: #1e1e1e; padding: 20px; border-radius: 8px; border: 1px solid #333; }
-        .pnj-card { background: #252525; margin: 15px 0; padding: 15px; border-radius: 6px; border-left: 5px solid #00ffcc; position: relative; }
-        .status-bubble { position: absolute; top: 10px; right: 10px; background: #333; padding: 3px 8px; font-size: 11px; border-radius: 10px; color: #ffcc00; }
-        .log-box { background: #050505; color: #33ff33; font-family: 'Courier New', monospace; padding: 15px; height: 300px; overflow-y: scroll; border-radius: 4px; border: 1px solid #222; }
+        
+        /* Écran du monde virtuel */
+        #world-canvas { background: #151515; border: 2px solid #00ffcc; border-radius: 8px; display: block; margin-bottom: 15px; box-shadow: 0 0 15px rgba(0,255,204,0.2); }
+        
+        .pnj-card { background: #252525; margin: 10px 0; padding: 10px; border-radius: 6px; border-left: 5px solid #00ffcc; }
+        .log-box { background: #050505; color: #33ff33; font-family: 'Courier New', monospace; padding: 15px; height: 250px; overflow-y: scroll; border-radius: 4px; border: 1px solid #222; font-size: 13px; }
         button { background: #00ffcc; color: #000; border: none; padding: 12px 20px; font-weight: bold; border-radius: 4px; cursor: pointer; transition: 0.2s; }
-        button:hover { background: #00cca3; box-shadow: 0 0 10px rgba(0,255,204,0.5); }
-        button:disabled { background: #444; color: #888; cursor: not-allowed; }
-        pre { background: #151515; padding: 10px; font-size: 11px; max-height: 150px; overflow-y: auto; color: #aaa; border-radius: 4px; }
+        button:hover { background: #00cca3; }
+        pre { background: #151515; padding: 5px; font-size: 11px; max-height: 100px; overflow-y: auto; color: #aaa; }
         .thinking { color: #ff9900; font-style: italic; }
     </style>
 </head>
 <body>
 
-    <h1>🎬 Free Guy : Simulation de PNJ avec Vraie IA</h1>
+    <h1>🎬 Free Guy - Mode Spectateur (Monde Réel & IA)</h1>
     
     <div class="api-box">
-        <h3>🔑 Connexion au Cerveau de l'IA (Groq / Llama3)</h3>
-        <p style="font-size: 13px; color: #aaa;">Crée un compte gratuit sur <a href="https://console.groq.com/" target="_blank" style="color: #00ffcc;">Groq Console</a> pour obtenir une clé API instantanément.</p>
-        <input type="password" id="api-key" placeholder="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">
-    </div>
-    
-    <div style="margin-bottom: 20px;">
-        <button id="btn-sim" onclick="declencherInteractionia()">🤖 Lancer une Interaction IA en Direct</button>
+        <h3>🔑 Clé API Groq</h3>
+        <input type="password" id="api-key" placeholder="Colle ta clé gsk_... ici">
+        <p style="font-size: 12px; color: #888; margin: 5px 0 0 0;">Le jeu utilise le modèle stable <code>llama-3.1-8b-instant</code>.</p>
     </div>
 
     <div class="container">
-        <div class="panel">
-            <h2>👥 Habitants Vivants (<span id="pop-count">0</span>)</h2>
-            <div id="pnj-list"></div>
+        <div class="panel" style="flex: 1.5; min-width: 450px;">
+            <h2>📺 Vue Spectateur en Direct</h2>
+            <canvas id="world-canvas" width="500" height="350"></canvas>
+            <p style="font-size: 13px; color: #aaa;">💡 Les PNJ se déplacent seuls. Quand ils se croisent, ils s'arrêtent pour déclencher une vraie discussion par IA !</p>
         </div>
 
         <div class="panel">
-            <h2>📜 Flux de Conscience et Événements (IA)</h2>
+            <h2>📜 Flux de Conscience (IA)</h2>
             <div id="log-box" class="log-box"></div>
+            
+            <h2 style="margin-top:20px;">👥 Registre des Citoyens</h2>
+            <div id="pnj-list"></div>
         </div>
     </div>
 
     <script>
-        // --- BASE DE DONNÉES DE SAUVEGARDE DES PNJ ---
-        // Ils se considèrent comme des humains au début
+        const canvas = document.getElementById("world-canvas");
+        const ctx = canvas.getContext("2d");
+
+        // --- DONNÉES DU MONDE ---
+        // Les maisons de la ville
+        let maisons = [
+            { x: 50, y: 50, w: 80, h: 60, porteOuverte: false, nom: "Banque" },
+            { x: 370, y: 50, w: 80, h: 60, porteOuverte: false, nom: "Maison Milly" },
+            { x: 210, y: 240, w: 90, h: 60, porteOuverte: false, nom: "Café" }
+        ];
+
+        // Les PNJ avec leurs positions physiques (X, Y) et leur IA
         let habitants = [
             {
-                id: 1, name: "Guy", metier: "Banquier", 
+                id: 1, name: "Guy", metier: "Banquier", couleur: "#00ffcc",
+                x: 100, y: 180, targetX: 100, targetY: 180, vitesse: 1, statut: "Marche",
                 personnalite: "Optimiste, adore le café, poli, routinier.",
-                conscience: "Pense être un humain normal à 100%.",
-                memoire: ["A salué son meilleur ami Buddy ce matin."]
+                conscience: "Humain normal (100%)", memoire: []
             },
             {
-                id: 2, name: "Milly", metier: "Codeuse rebelle", 
+                id: 2, name: "Milly", metier: "Codeuse", couleur: "#ff00ff",
+                x: 400, y: 180, targetX: 400, targetY: 180, vitesse: 1.2, statut: "Marche",
                 personnalite: "Curieuse, cherche la vérité, n'aime pas l'autorité.",
-                conscience: "Sait que le monde cache quelque chose d'artificiel.",
-                memoire: ["A remarqué un bug visuel dans le ciel hier."]
+                conscience: "Cherche des bugs", memoire: []
             }
         ];
 
-        function log(text) {
-            const lb = document.getElementById("log-box");
-            lb.innerHTML += `<div>${text}</div>`;
-            lb.scrollTop = lb.scrollHeight;
-        }
+        let iaEnCours = false;
 
-        function rafraichirUI() {
-            document.getElementById("pop-count").innerText = habitants.length;
-            const list = document.getElementById("pnj-list");
-            list.innerHTML = "";
-            
-            habitants.forEach(p => {
-                list.innerHTML += `
-                    <div class="pnj-card">
-                        <div class="status-bubble">🧠 Conscience : ${p.conscience}</div>
-                        <h3>🧑 ${p.name}</h3>
-                        <p><strong>Métier :</strong> ${p.metier}</p>
-                        <p><strong>Traits :</strong> <em>${p.personnalite}</em></p>
-                        <details>
-                            <summary>💾 Voir les données de sauvegarde du PNJ</summary>
-                            <pre>${JSON.stringify(p, null, 2)}</pre>
-                        </details>
-                    </div>
-                `;
+        // --- MOTEUR GRAPHIQUE (Boucle de rendu à 60 FPS) ---
+        function updateMonde() {
+            // 1. Effacer l'écran
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // 2. Dessiner les routes (décor de fond)
+            ctx.strokeStyle = "#333";
+            ctx.lineWidth = 40;
+            ctx.beginPath();
+            ctx.moveTo(0, 180); ctx.lineTo(500, 180); // Rue principale
+            ctx.moveTo(250, 0); ctx.lineTo(250, 350); // Croisement
+            ctx.stroke();
+
+            // 3. Dessiner les Maisons et leurs Portes
+            maisons.forEach(m => {
+                ctx.fillStyle = "#1e3a5f"; // Couleur maison
+                ctx.fillRect(m.x, m.y, m.w, m.h);
+                ctx.strokeStyle = "#4a90e2";
+                ctx.strokeRect(m.x, m.y, m.w, m.h);
+                
+                // Nom de la maison
+                ctx.fillStyle = "#fff";
+                ctx.font = "10px Arial";
+                ctx.fillText(m.name, m.x + 10, m.y - 5);
+
+                // La Porte (devient verte si ouverte, rouge si fermée)
+                ctx.fillStyle = m.porteOuverte ? "#00ff00" : "#ff3333";
+                ctx.fillRect(m.x + m.w/2 - 10, m.y + m.h - 15, 20, 15);
             });
+
+            // 4. Gérer les déplacements des PNJ
+            habitants.forEach(p => {
+                if (p.statut === "Marche") {
+                    // Si le PNJ a atteint sa cible, on lui donne une nouvelle destination au hasard
+                    let dx = p.targetX - p.x;
+                    let dy = p.targetY - p.y;
+                    let distance = Math.sqrt(dx*dx + dy*dy);
+
+                    if (distance < 5) {
+                        p.targetX = Math.random() * (canvas.width - 40) + 20;
+                        p.targetY = Math.random() * (canvas.height - 40) + 20;
+                    } else {
+                        // Avancer vers la cible
+                        p.x += (dx / distance) * p.vitesse;
+                        p.y += (dy / distance) * p.vitesse;
+                    }
+
+                    // Vérifier si le PNJ passe près d'une porte de maison
+                    maisons.forEach(m => {
+                        let porteX = m.x + m.w/2;
+                        let porteY = m.y + m.h;
+                        let distPorte = Math.sqrt((p.x - porteX)**2 + (p.y - porteY)**2);
+                        m.porteOuverte = (distPorte < 30); // La porte s'ouvre magiquement
+                    });
+                }
+
+                // Dessiner le PNJ (le petit habitant)
+                ctx.fillStyle = p.couleur;
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, 8, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Dessiner son prénom au-dessus de sa tête
+                ctx.fillStyle = "#fff";
+                ctx.font = "11px Arial";
+                ctx.fillText(p.name, p.x - 12, p.y - 12);
+
+                // Si les PNJ parlent, dessiner une petite bulle
+                if (p.statut === "Parle") {
+                    ctx.fillStyle = "rgba(255,255,255,0.8)";
+                    ctx.fillRect(p.x - 20, p.y - 35, 40, 15);
+                    ctx.fillStyle = "#000";
+                    ctx.font = "bold 9px Arial";
+                    ctx.fillText("💬 IA...", p.x - 15, p.y - 24);
+                }
+            });
+
+            // 5. Détecter si Guy et Milly se croisent pour déclencher l'IA
+            let distEntrePNJ = Math.sqrt((habitants[0].x - habitants[1].x)**2 + (habitants[0].y - habitants[1].y)**2);
+            if (distEntrePNJ < 25 && !iaEnCours) {
+                declencherRencontreIA();
+            }
+
+            requestAnimationFrame(updateMonde);
         }
 
-      // --- APPEL À LA VRAIE IA ---
+        // --- CONNEXION À LA VRAIE IA ---
         async function appelerIA(systemPrompt, userPrompt) {
             const apiKey = document.getElementById("api-key").value.trim();
-            if (!apiKey) {
-                alert("⚠️ S'il te plaît, colle ta clé API Groq !");
-                return null;
-            }
+            if (!apiKey) return "Je marche tranquillement... (Colle ta clé API en haut pour me faire parler !)";
 
             try {
                 const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
@@ -108,7 +178,7 @@
                         "Content-Type": "application/json"
                     },
                     body: JSON.stringify({
-                        model: "llama-3.1-8b-instant", // Changement pour un modèle plus récent et stable
+                        model: "llama-3.1-8b-instant",
                         messages: [
                             { role: "system", content: systemPrompt },
                             { role: "user", content: userPrompt }
@@ -116,69 +186,70 @@
                         temperature: 0.8
                     })
                 });
-
                 const data = await response.json();
-                
-                // Si Groq renvoie une erreur textuelle
-                if(data.error) {
-                    console.error(data.error);
-                    return "Erreur API : " + data.error.message;
-                }
-
                 return data.choices[0].message.content.trim();
-            } catch (error) {
-                console.error(error);
-                return null;
+            } catch (e) {
+                return "Oh, j'ai l'impression d'avoir un bug dans ma matrice...";
             }
         }
 
-        // --- SIMULATION DE L'INTERACTION PAR L'IA ---
-        async function declencherInteractionia() {
-            const btn = document.getElementById("btn-sim");
-            btn.disabled = true;
-
-            // On choisit les deux PNJ
+        // --- LOGIQUE DE RENCONTRE EN DIRECT ---
+        async function declencherRencontreIA() {
+            iaEnCours = true;
             let p1 = habitants[0];
             let p2 = habitants[1];
 
-            log(`<span class="thinking">[IA] Analyse du monde en cours... Génération d'une rencontre entre ${p1.name} et ${p2.name}...</span>`);
+            // On stoppe les PNJ physiquement sur l'écran
+            p1.statut = "Parle";
+            p2.statut = "Parle";
 
-            // Événement déclencheur : Milly montre des lunettes de soleil à Guy
-            let contexteAction = `Milly croise Guy dans la rue de Free City. Elle décide de briser sa routine en lui mettant de force des lunettes de soleil de joueur sur les yeux pour tester sa réaction.`;
-            
-            log(`🎬 <strong>Événement :</strong> ${contexteAction}`);
+            const lb = document.getElementById("log-box");
+            lb.innerHTML += `<div class="thinking">👋 👀 Guy et Milly se sont croisés sur la route ! Connexion à l'IA...</div>`;
+            lb.scrollTop = lb.scrollHeight;
 
-            // 1. Demander à l'IA la réaction de Guy
-            let guySystem = `Tu es Guy, un PNJ qui vit dans un jeu vidéo mais qui est persuadé d'être un humain de chair et d'os. Ta personnalité : ${p1.personnalite}. Tes souvenirs récents : ${p1.memoire.join(' ')}. Tu dois réagir à ce qui t'arrive de manière ultra réaliste. Si l'action te fait réaliser que tu es dans un jeu, décris ta panique ou ta surprise existentielle en découvrant l'interface de code. Réponds sous forme de dialogue direct (court).`;
-            
-            let guyReponse = await appelerIA(guySystem, `Action actuelle : ${contexteAction}. Génère ta réaction orale.`);
+            // Dialogue de Guy via l'IA
+            let guySys = `Tu es Guy de Free Guy. Tu es un PNJ poli qui croit être humain. Tu croises Milly dans la rue. Dis-lui bonjour selon ta personnalité : ${p1.personnalite}. Réponds par une seule phrase courte.`;
+            let guyDit = await appelerIA(guySys, "Dis lui bonjour spontanément.");
+            lb.innerHTML += `<div>🗣️ <strong>${p1.name} :</strong> "${guyDit}"</div>`;
 
-            if (!guyReponse) {
-                log(`❌ Échec de la connexion à l'IA. Vérifie ta clé API.`);
-                btn.disabled = false;
-                return;
-            }
+            // Dialogue de Milly via l'IA
+            let millySys = `Tu es Milly. Tu sais que le monde est un jeu vidéo. Guy vient de te dire : "${guyDit}". Réponds-lui de manière mystérieuse pour éveiller sa conscience. Une seule phrase courte.`;
+            let millyDit = await appelerIA(millySys, "Réponds à Guy.");
+            lb.innerHTML += `<div>🗣️ <strong>${p2.name} :</strong> "${millyDit}"</div>`;
+            lb.scrollTop = lb.scrollHeight;
 
-            log(`🗣️ <strong>${p1.name} :</strong> "${guyReponse}"`);
-            p1.memoire.push(`Milly m'a mis des lunettes. J'ai vu des lignes de code flotter dans le ciel. Je panique.`);
-            p1.conscience = "Prend conscience du code du jeu (50%)";
+            // Mise à jour de la mémoire de la sauvegarde
+            p1.memoire.push(`A croisé Milly qui lui a dit un truc bizarre : ${millyDit}`);
+            p1.conscience = "S'interroge sur la réalité (25%)";
 
-            // 2. Demander à l'IA la réponse de Milly
-            let millySystem = `Tu es Milly, une codeuse humaine infiltrée. Ta personnalité : ${p2.personnalite}. Tu viens de mettre les lunettes à Guy et il vient de te répondre ceci : "${guyReponse}". Réponds-lui de manière naturelle, comme un humain parlerait à une IA qui s'éveille.`;
-            
-            let millyReponse = await appelerIA(millySystem, `Réponds à la réaction de Guy.`);
-            
-            log(`🗣️ <strong>${p2.name} :</strong> "${millyReponse}"`);
-            p2.memoire.push(`J'ai mis les lunettes à Guy. Il commence à s'éveiller.`);
+            rafraichirRegistre();
 
-            log(`<span class="thinking">💾 [IA] Sauvegarde des mémoires terminée. Les personnalités ont évolué de manière autonome.</span>`);
-            
-            rafraichirUI();
-            btn.disabled = false;
+            // Attendre 4 secondes pour que le spectateur lise, puis ils reprennent leur marche
+            setTimeout(() => {
+                p1.statut = "Marche";
+                p2.statut = "Marche";
+                // On les sépare un peu pour éviter qu'ils ne rebouclent instantanément
+                p1.x += 30; p2.x -= 30;
+                iaEnCours = false;
+            }, 4000);
         }
 
-        // Initialisation
-        rafraichirUI();
+        function rafraichirRegistre() {
+            const list = document.getElementById("pnj-list");
+            list.innerHTML = "";
+            habitants.forEach(p => {
+                list.innerHTML += `
+                    <div class="pnj-card">
+                        <strong>🧑 ${p.name}</strong> - 🧠 ${p.conscience}<br>
+                        <small>Dernier souvenir : ${p.memoire[p.memoire.length-1] || 'Aucun'}</small>
+                    </div>
+                `;
+            });
+        }
+
+        // Démarrage du simulateur
+        rafraichirRegistre();
+        updateMonde();
     </script>
 </body>
 </html>
