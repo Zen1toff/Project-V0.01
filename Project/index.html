@@ -1,26 +1,23 @@
-<!DOCTYPE html>
-<html lang="fr">
+local VoiceChatService = game:GetService("VoiceChatService")
+local Players = game:GetService("Players")
 
-<head>
-    <meta charset="UTF-8">
-    <title>Roblox Camera</title>
-
-    <link rel="stylesheet" href="style.css">
-</head>
-
-<body>
-
-    <div class="phone">
-
-        <video id="video" autoplay playsinline></video>
-
-        <button id="captureBtn">
-            PRENDRE PHOTO
-        </button>
-
-    </div>
-
-<script src="script.js"></script>
-
-</body>
-</html>
+-- Ce script tourne en boucle près du PNJ
+while true do
+    task.wait(0.5)
+    
+    for _, player in pairs(Players:GetPlayers()) do
+        -- On vérifie si le joueur a activé son micro
+        local isSpeaking = VoiceChatService:IsPlayerVoiceActive(player)
+        
+        if isSpeaking then
+            -- On calcule la distance entre le joueur et le PNJ
+            local distance = (player.Character.HumanoidRootPart.Position - script.Parent.HumanoidRootPart.Position).Magnitude
+            
+            if distance < 10 then -- Si le joueur parle à moins de 10 blocs
+                print(player.Name .. " est en train de me parler en vocal !")
+                -- Ici, tu déclenches l'animation du PNJ qui se tourne 
+                -- et ouvre sa boîte de dialogue !
+            end
+        end
+    end
+end
