@@ -1,26 +1,246 @@
 <!DOCTYPE html>
 <html lang="fr">
-
 <head>
     <meta charset="UTF-8">
-    <title>Roblox Camera</title>
-
-    <link rel="stylesheet" href="style.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Free Guy Eco-System Simulation</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #1a1a1a; color: #fff; margin: 20px; }
+        h1, h2 { color: #00ffcc; }
+        .container { display: flex; gap: 20px; flex-wrap: wrap; }
+        .panel { flex: 1; min-width: 300px; background: #2a2a2a; padding: 15px; border-radius: 8px; border: 1px solid #444; }
+        .pnj-card { background: #333; margin: 10px 0; padding: 10px; border-radius: 6px; border-left: 5px solid #00ffcc; }
+        .log-box { background: #000; color: #00ff00; font-family: monospace; padding: 10px; height: 200px; overflow-y: scroll; border-radius: 4px; }
+        button { background: #00ffcc; color: #000; border: none; padding: 10px 15px; font-weight: bold; border-radius: 4px; cursor: pointer; margin-right: 5px; }
+        button:hover { background: #00cca3; }
+        pre { background: #222; padding: 5px; font-size: 11px; max-height: 150px; overflow-y: auto; color: #ff9900; }
+    </style>
 </head>
-
 <body>
 
-    <div class="phone">
-
-        <video id="video" autoplay playsinline></video>
-
-        <button id="captureBtn">
-            PRENDRE PHOTO
-        </button>
-
+    <h1>🎬 Simulation d'Écosystème Autonome à la "Free Guy"</h1>
+    <p>Chaque PNJ a sa propre sauvegarde de données, sa mémoire, ses traits de caractère, et peut voter ou changer de métier par passion.</p>
+    
+    <div style="margin-bottom: 20px;">
+        <button onclick="simulerUneHeure()">⏳ Simuler 1 Heure de vie</button>
+        <button onclick="declarerElections()">🗳️ Lancer des Élections à la Mairie</button>
+        <button onclick="genererBebe()">👶 Naissance d'un Nouveau-Né</button>
     </div>
 
-<script src="script.js"></script>
+    <div class="container">
+        <!-- Liste des PNJ -->
+        <div class="panel">
+            <h2>👥 Habitants de la Ville (<span id="pop-count">0</span>)</h2>
+            <div id="pnj-list"></div>
+        </div>
 
+        <!-- Logs du monde -->
+        <div class="panel">
+            <h2>📜 Événements en Direct (Le Monde Réel)</h2>
+            <div id="log-box" class="log-box"></div>
+            
+            <h2 style="margin-top:20px;">🏛️ État de la Mairie</h2>
+            <p id="info-mairie">Maire actuel : <strong>Aucun (Anarchie totale)</strong></p>
+        </div>
+    </div>
+
+    <script>
+        // --- 1. BASE DE DONNÉES DES PNJ (Sauvegarde en mémoire) ---
+        let habitants = [
+            {
+                id: 1, name: "Guy", metier: "Banquier", passion: "Aider les gens", 
+                traits: { ambition: 30, justice: 90, colere: 10 },
+                memoire: ["Aime les cafés moyennement torréfiés."], amis: [2], parents: []
+            },
+            {
+                id: 2, name: "Buddy", metier: "Vigile", passion: "Sécurité", 
+                traits: { ambition: 20, justice: 80, colere: 40 },
+                memoire: ["Est le meilleur ami de Guy."], amis: [1], parents: []
+            },
+            {
+                id: 3, name: "Antwan", metier: "PDG de Soonami", passion: "Pouvoir", 
+                traits: { ambition: 100, justice: 10, colere: 80 },
+                memoire: ["Déteste qu'on lui tienne tête."], amis: [], parents: []
+            },
+            {
+                id: 4, name: "Milly", metier: "Codeuse", passion: "Justice sociale", 
+                traits: { ambition: 75, justice: 95, colere: 30 },
+                memoire: ["Cherche à prouver que le code de son jeu a été volé."], amis: [], parents: []
+            }
+        ];
+
+        let maireActuel = "Aucun";
+
+        // Liste de prénoms pour les bébés
+        const prenomsNouveauNes = ["MolotovGirl", "Keys", "Charly", "LoverBoy", "Artie", "User404"];
+        const passionsPossibles = ["Politique", "Sécurité", "Argent", "Art", "Exploration"];
+        const metiersPossibles = ["Policier", "Barman", "Maire", "Chômeur", "Artiste", "Banquier"];
+
+        // --- 2. FONCTIONS DE SIMULATION ---
+
+        function logEvent(texte) {
+            const logBox = document.getElementById("log-box");
+            logBox.innerHTML += `<div>• ${texte}</div>`;
+            logBox.scrollTop = logBox.scrollHeight;
+        }
+
+        function rafraichirAffichage() {
+            document.getElementById("pop-count").innerText = habitants.length;
+            const listeDiv = document.getElementById("pnj-list");
+            listeDiv.innerHTML = "";
+
+            habitants.forEach(pnj => {
+                listeDiv.innerHTML += `
+                    <div class="pnj-card">
+                        <h3>🧑 ${pnj.name} (${pnj.metier})</h3>
+                        <p><strong>Passion :</strong> ${pnj.passion}</p>
+                        <p><strong>Amis (IDs) :</strong> ${pnj.amis.length > 0 ? pnj.amis.join(", ") : "Aucun"}</p>
+                        <p><strong>Dernier souvenir :</strong> <em>"${pnj.memoire[pnj.memoire.length - 1] || 'Aucun'}"</em></p>
+                        <details>
+                            <summary>🔍 Voir Arbre de Comportement & Données de Sauvegarde</summary>
+                            <pre>${JSON.stringify(pnj, null, 2)}</pre>
+                        </details>
+                    </div>
+                `;
+            });
+            document.getElementById("info-mairie").innerHTML = `Maire actuel : <strong style="color:#00ffcc;">${maireActuel}</strong>`;
+        }
+
+        // Action : Une heure passe (Rencontres, bousculades, changements de vie)
+        function simulerUneHeure() {
+            if(habitants.length < 2) return;
+
+            // Sélectionner deux PNJ au hasard qui se croisent
+            let p1 = habitants[Math.floor(Math.random() * habitants.length)];
+            let p2 = habitants[Math.floor(Math.random() * habitants.length)];
+            
+            while(p1.id === p2.id) {
+                p2 = habitants[Math.floor(Math.random() * habitants.length)];
+            }
+
+            // Scénario basé sur leurs traits de caractère
+            if (p1.traits.colere > 70) {
+                // P1 est colérique, il bouscule P2
+                logEvent(`<span style="color:#ff4444;">${p1.name}</span> a bousculé <span style="color:#00ffcc;">${p2.name}</span> dans la rue !`);
+                p1.memoire.push(`A passé ses nerfs sur ${p2.name}.`);
+                p2.memoire.push(`S'est fait agresser par ${p1.name}. Niveau de colère augmenté.`);
+                p2.traits.colere = Math.min(100, p2.traits.colere + 15);
+            } else {
+                // Discussion amicale
+                logEvent(`<span style="color:#00ffcc;">${p1.name}</span> et <span style="color:#00ffcc;">${p2.name}</span> ont discuté de leur passion commune.`);
+                if(!p1.amis.includes(p2.id)) {
+                    p1.amis.push(p2.id);
+                    p2.amis.push(p1.id);
+                    logEvent(`🤝 Ils sont devenus amis ! Sauvegarde mise à jour.`);
+                }
+                p1.memoire.push(`A discuté avec son ami ${p2.name}.`);
+                p2.memoire.push(`A passé un bon moment avec ${p1.name}.`);
+            }
+
+            // Un PNJ peut changer de métier par passion si son ambition augmente
+            habitants.forEach(p => {
+                if(p.traits.ambition > 60 && p.metier !== "Maire" && Math.random() > 0.7) {
+                    let ancienMetier = p.metier;
+                    p.metier = metiersPossibles[Math.floor(Math.random() * metiersPossibles.length)];
+                    if(p.metier !== ancienMetier) {
+                        logEvent(`💼 <strong style="color:#ffcc00;">${p.name}</strong> a démissionné de son poste de ${ancienMetier} pour devenir ${p.metier} par passion !`);
+                        p.memoire.push(`Nouvelle carrière : Je suis devenu ${p.metier}.`);
+                    }
+                }
+            });
+
+            rafraichirAffichage();
+        }
+
+        // Action : Système de Vote Démocratique
+        function declarerElections() {
+            logEvent("📢 <strong>Les élections municipales sont ouvertes à Free City !</strong>");
+            
+            // Trouver les candidats (ceux qui ont de l'ambition)
+            let candidats = habitants.filter(p => p.traits.ambition > 50);
+            if(candidats.length === 0) candidats = [habitants[0]]; // Sécurité
+
+            logEvent(`🗳️ Les candidats déclarés sont : ${candidats.map(c => c.name).join(", ")}`);
+
+            let votes = {};
+            candidats.forEach(c => votes[c.id] = 0);
+
+            // Chaque citoyen vote selon son arbre comportemental
+            habitants.forEach(citoyen => {
+                let meilleurChoix = candidats[0];
+                let meilleurScore = -999;
+
+                candidats.forEach(cand => {
+                    let scoreVote = 0;
+                    // Si le candidat est son ami
+                    if(citoyen.amis.includes(cand.id)) scoreVote += 50;
+                    // Alignement de la justice
+                    scoreVote += (100 - Math.abs(citoyen.traits.justice - cand.traits.justice));
+                    
+                    if(scoreVote > meilleurScore) {
+                        meilleurScore = scoreVote;
+                        meilleurChoix = cand;
+                    }
+                });
+
+                votes[meilleurChoix.id]++;
+                logEvent(`🗳️ ${citoyen.name} a voté pour ${meilleurChoix.name} (Basé sur ses affinités).`);
+            });
+
+            // Compter les votes
+            let vainqueur = candidats[0];
+            let maxVotes = -1;
+            candidats.forEach(c => {
+                if(votes[c.id] > maxVotes) {
+                    maxVotes = votes[c.id];
+                    vainqueur = c;
+                }
+            });
+
+            // Destituer l'ancien maire
+            habitants.forEach(p => { if(p.metier === "Maire") p.metier = "Ancien Maire"; });
+
+            maireActuel = vainqueur.name;
+            vainqueur.metier = "Maire";
+            vainqueur.memoire.push("J'ai été élu MAIRE de la ville de manière démocratique !");
+            logEvent(`🏆 🎉 <strong>${vainqueur.name} est élu MAIRE avec ${maxVotes} votes !</strong>`);
+            rafraichirAffichage();
+        }
+
+        // Action : Naissance et fusion génétique/comportementale
+        function genererBebe() {
+            if(habitants.length < 2) return;
+            
+            // On prend deux parents au hasard pour l'exemple
+            let parent1 = habitants[0];
+            let parent2 = habitants[1];
+
+            let nomBebe = prenomsNouveauNes[Math.floor(Math.random() * prenomsNouveauNes.length)] + " Jr.";
+            
+            // Fusion de l'arbre comportemental (Hérédité)
+            let bebe = {
+                id: habitants.length + 1,
+                name: nomBebe,
+                metier: "Nouveau-né",
+                passion: parent1.passion, // Hérite de la passion du parent 1
+                traits: {
+                    ambition: Math.round((parent1.traits.ambition + parent2.traits.ambition) / 2), // Moyenne des parents
+                    justice: Math.round((parent1.traits.justice + parent2.traits.justice) / 2),
+                    colere: Math.round((parent1.traits.colere + parent2.traits.colere) / 2)
+                },
+                memoire: [`Je viens de naître à Free City. Mes parents sont ${parent1.name} et ${parent2.name}.`],
+                amis: [],
+                parents: [parent1.id, parent2.id]
+            };
+
+            habitants.push(bebe);
+            logEvent(`👶 ✨ <strong>Un nouveau PNJ est né : ${bebe.name} !</strong> Il a hérité des traits de caractère de ses parents.`);
+            rafraichirAffichage();
+        }
+
+        // Initialisation au chargement
+        rafraichirAffichage();
+        logEvent("Le monde de Free City s'est éveillé. En attente de vos ordres...");
+    </script>
 </body>
 </html>
