@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Liaison Caméra IA — Roblox RP</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>🎥 Tracking Caméra IA</h1>
+      <p class="subtitle">Détection des mouvements en temps réel pour ton personnage Roblox</p>
+    </header>
+
+    <div class="main-grid">
+      <!-- Zone vidéo -->
+      <div class="video-panel">
+        <div class="video-wrapper">
+          <video id="webcam" autoplay playsinline muted></video>
+          <canvas id="overlay"></canvas>
+        </div>
+        <button id="startButton" class="btn btn-primary">Activer la caméra</button>
+      </div>
+
+      <!-- Panneau de liaison -->
+      <div class="control-panel">
+        <div class="status-box" id="statusBox">
+          <span class="status-dot" id="statusDot"></span>
+          <span id="statusText">Caméra inactive</span>
+        </div>
+
+        <div class="code-display" id="codeDisplay" style="display:none;">
+          <p class="code-label">Code de liaison</p>
+          <div class="code-value" id="codeValue">----</div>
+          <p class="code-hint">Entre ce code dans le jeu Roblox</p>
+        </div>
+
+        <button id="generateButton" class="btn btn-secondary" disabled>
+          Générer le code de liaison
+        </button>
+
+        <div class="debug-panel" id="debugPanel">
+          <p class="debug-title">Données détectées (debug)</p>
+          <pre id="debugOutput">En attente...</pre>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MediaPipe Tasks Vision (détection de pose dans le navigateur) -->
+  <script type="module" src="app.js"></script>
+</body>
+</html>
